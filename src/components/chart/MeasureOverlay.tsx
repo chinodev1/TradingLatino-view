@@ -14,6 +14,9 @@ interface Props {
   durationText: string;
   isUp: boolean;
   isPreview: boolean;
+  barsLabel?: string;
+  volLabel?: string;
+  onClose?: () => void;
 }
 
 const UP_STROKE = "#26a69a";
@@ -33,6 +36,9 @@ export function MeasureOverlay({
   durationText,
   isUp,
   isPreview,
+  barsLabel = "bars",
+  volLabel = "Vol",
+  onClose,
 }: Props) {
   const stroke = isUp ? UP_STROKE : DOWN_STROKE;
   const fill = isUp ? UP_FILL : DOWN_FILL;
@@ -120,15 +126,26 @@ export function MeasureOverlay({
           color: "#ffffff",
         }}
       >
+        {onClose && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onClose(); }}
+            className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-black/40 text-white hover:bg-black/70"
+            style={{ pointerEvents: "auto" }}
+          >
+            <svg width="6" height="6" viewBox="0 0 6 6" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+              <line x1="1" y1="1" x2="5" y2="5"/><line x1="5" y1="1" x2="1" y2="5"/>
+            </svg>
+          </button>
+        )}
         <div>
           {sign}
           {formatPrice(priceDiff)} ({pctSign}
           {pctChange.toFixed(2)}%)
         </div>
         <div className="opacity-90">
-          {bars} barras · {durationText}
+          {bars} {barsLabel} · {durationText}
         </div>
-        <div className="opacity-90">Vol {formatVolume(volume)}</div>
+        <div className="opacity-90">{volLabel} {formatVolume(volume)}</div>
       </div>
     </>
   );

@@ -10,42 +10,36 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useChartStore, type IndicatorKey } from "@/lib/store/chart-store";
+import { useChartStore, type IndicatorKey, type IndicatorConfig } from "@/lib/store/chart-store";
+import { useTranslation } from "@/lib/useTranslation";
 
 interface Entry {
   key: IndicatorKey;
-  label: (cfg: {
-    ema20: number;
-    ema50: number;
-    ema200: number;
-    rsi: number;
-    macdFast: number;
-    macdSlow: number;
-    macdSignal: number;
-  }) => string;
-  group: string;
+  label: (cfg: IndicatorConfig, volLabel: string) => string;
+  groupKey: string;
 }
 
 const ENTRIES: Entry[] = [
-  { key: "ema20", group: "Medias móviles", label: (c) => `EMA ${c.ema20}` },
-  { key: "ema50", group: "Medias móviles", label: (c) => `EMA ${c.ema50}` },
-  { key: "ema200", group: "Medias móviles", label: (c) => `EMA ${c.ema200}` },
-  { key: "volume", group: "Volumen", label: () => "Volumen" },
-  { key: "rsi", group: "Osciladores", label: (c) => `RSI (${c.rsi})` },
-  {
-    key: "macd",
-    group: "Osciladores",
-    label: (c) => `MACD (${c.macdFast}, ${c.macdSlow}, ${c.macdSignal})`,
-  },
+  { key: "ema20",   groupKey: "Medias móviles", label: (c) => `EMA ${c.ema20}` },
+  { key: "ema50",   groupKey: "Medias móviles", label: (c) => `EMA ${c.ema50}` },
+  { key: "ema200",  groupKey: "Medias móviles", label: (c) => `EMA ${c.ema200}` },
+  { key: "fourEma", groupKey: "Medias móviles", label: (c) => `4EMA (${c.fourEma1}, ${c.fourEma2}, ${c.fourEma3}, ${c.fourEma4})` },
+  { key: "volume",  groupKey: "Volumen",         label: (_c, v) => v },
+  { key: "vrvp",    groupKey: "Volumen",         label: () => "Volume Profile (VRVP)" },
+  { key: "rsi",     groupKey: "Osciladores",     label: (c) => `RSI (${c.rsi})` },
+  { key: "macd",    groupKey: "Osciladores",     label: (c) => `MACD (${c.macdFast}, ${c.macdSlow}, ${c.macdSignal})` },
+  { key: "adx",     groupKey: "Osciladores",     label: (c) => `DMI/ADX/KeyLevel (DI ${c.adxDiLen}, ADX ${c.adxLen}, KL ${c.adxKeyLevel})` },
+  { key: "sqzMom",  groupKey: "Osciladores",     label: (c) => `Squeeze Momentum BB ${c.sqzBbLen}/${c.sqzKcLen}` },
 ];
 
 export function IndicatorMenu() {
   const indicators = useChartStore((s) => s.indicators);
   const config = useChartStore((s) => s.config);
   const toggle = useChartStore((s) => s.toggleIndicator);
+  const t = useTranslation();
 
   const groups = ENTRIES.reduce<Record<string, Entry[]>>((acc, i) => {
-    (acc[i.group] ||= []).push(i);
+    (acc[i.groupKey] ||= []).push(i);
     return acc;
   }, {});
 
@@ -55,19 +49,19 @@ export function IndicatorMenu() {
     <DropdownMenu>
       <DropdownMenuTrigger className="flex items-center gap-1.5 rounded px-2.5 py-1.5 text-xs text-tv-text hover:bg-tv-panel-hover">
         <Activity className="h-3.5 w-3.5" />
-        <span>Indicadores</span>
+        <span>{t.indicators}</span>
         {activeCount > 0 && (
           <span className="ml-1 rounded bg-tv-blue/20 px-1.5 py-0.5 text-[10px] font-semibold text-tv-blue">
             {activeCount}
           </span>
         )}
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-64 bg-tv-panel">
-        {Object.entries(groups).map(([group, items], idx) => (
-          <DropdownMenuGroup key={group}>
+      <DropdownMenuContent align="start" className="w-72 bg-tv-panel">
+        {Object.entries(groups).map(([groupKey, items], idx) => (
+          <DropdownMenuGroup key={groupKey}>
             {idx > 0 && <DropdownMenuSeparator />}
             <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-tv-text-muted">
-              {group}
+              {t.groups[groupKey as keyof typeof t.groups] ?? groupKey}
             </DropdownMenuLabel>
             {items.map((i) => (
               <DropdownMenuItem
@@ -76,7 +70,7 @@ export function IndicatorMenu() {
                 onClick={() => toggle(i.key)}
                 className="flex items-center justify-between text-xs"
               >
-                <span>{i.label(config)}</span>
+                <span>{i.label(config, t.indicatorLabels.volume)}</span>
                 {indicators[i.key] && <Check className="h-3.5 w-3.5 text-tv-blue" />}
               </DropdownMenuItem>
             ))}

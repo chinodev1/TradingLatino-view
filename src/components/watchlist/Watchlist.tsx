@@ -5,6 +5,7 @@ import { Plus, X } from "lucide-react";
 import { fetchTickers24h } from "@/lib/binance/rest";
 import { getBinanceWS } from "@/lib/binance/ws";
 import { useChartStore } from "@/lib/store/chart-store";
+import { useTranslation } from "@/lib/useTranslation";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatPrice, formatPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,7 @@ export function Watchlist() {
   const setSymbol = useChartStore((s) => s.setSymbol);
   const removeFromWatchlist = useChartStore((s) => s.removeFromWatchlist);
   const openSymbolDialog = useChartStore((s) => s.setSymbolDialogOpen);
+  const t = useTranslation();
   const [rows, setRows] = useState<Record<string, Row>>({});
   const [flash, setFlash] = useState<Record<string, "up" | "down" | null>>({});
 
@@ -85,21 +87,21 @@ export function Watchlist() {
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between border-b border-tv-border px-3 py-2">
         <h2 className="text-[11px] font-semibold uppercase tracking-wider text-tv-text-muted">
-          Watchlist
+          {t.watchlist.title}
         </h2>
         <button
           onClick={() => openSymbolDialog(true)}
           className="rounded p-1 text-tv-text-muted hover:bg-tv-panel-hover hover:text-tv-text"
-          title="Agregar símbolo"
-          aria-label="Agregar al watchlist"
+          title={t.watchlist.addPlaceholder}
+          aria-label={t.watchlist.addPlaceholder}
         >
           <Plus className="h-3.5 w-3.5" />
         </button>
       </div>
       <div className="grid grid-cols-[1fr_auto_auto] gap-2 border-b border-tv-border px-3 py-1.5 text-[10px] uppercase tracking-wider text-tv-text-dim">
-        <span>Símbolo</span>
-        <span className="text-right">Precio</span>
-        <span className="text-right">24h</span>
+        <span>{t.watchlist.colSymbol}</span>
+        <span className="text-right">{t.watchlist.colPrice}</span>
+        <span className="text-right">{t.watchlist.col24h}</span>
       </div>
       <ScrollArea className="flex-1">
         <div className="flex flex-col">
@@ -162,7 +164,7 @@ export function Watchlist() {
           })}
           {watchlist.length === 0 && (
             <div className="p-4 text-center text-xs text-tv-text-muted">
-              Tu watchlist está vacío
+              {t.watchlist.empty}
             </div>
           )}
         </div>

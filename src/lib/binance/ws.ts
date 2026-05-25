@@ -61,7 +61,9 @@ export class BinanceWS {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private nextId = 1;
   private klineSubs = new Map<string, KlineSubscription>();
-  private tickerSubs = new Map<string, (m: MiniTickerMsg["data"]) => void>();
+  // Multiple components can subscribe to the same ticker stream simultaneously.
+  // Map<streamName, Set<handler>> so no subscriber silently overwrites another.
+  private tickerSubs = new Map<string, Set<(m: MiniTickerMsg["data"]) => void>>();
   private connected = false;
   private closing = false;
 
@@ -72,12 +74,11 @@ export class BinanceWS {
     this.ws.onopen = () => {
       this.connected = true;
       this.reconnectAttempts = 0;
-      // Re-subscribe everything
       const streams: string[] = [];
       this.klineSubs.forEach((s) => {
         streams.push(`${s.symbol.toLowerCase()}@kline_${s.interval}`);
       });
-      this.tickerSubs.forEach((_v, k) => streams.push(k));
+      this.tickerSubs.forEach((_handlers, stream) => streams.push(stream));
       if (streams.length > 0) this.send({ method: "SUBSCRIBE", params: streams, id: this.nextId++ });
     };
 
@@ -130,8 +131,8 @@ export class BinanceWS {
         isFinal: k.x,
       });
     } else if (msg.stream.includes("@miniTicker")) {
-      const handler = this.tickerSubs.get(msg.stream);
-      if (handler) handler((msg as MiniTickerMsg).data);
+      const handlers = this.tickerSubs.get(msg.stream);
+      if (handlers) handlers.forEach((h) => h((msg as MiniTickerMsg).data));
     }
   }
 
@@ -150,22 +151,42 @@ export class BinanceWS {
     onTick: (s: { symbol: string; close: number; open: number; pct: number }) => void,
   ): () => void {
     const streams = symbols.map((s) => `${s.toLowerCase()}@miniTicker`);
+    const handlers = new Map<string, (d: MiniTickerMsg["data"]) => void>();
+
     streams.forEach((stream) => {
-      this.tickerSubs.set(stream, (d) => {
+      const handler = (d: MiniTickerMsg["data"]) => {
         const close = parseFloat(d.c);
         const open = parseFloat(d.o);
-        onTick({
-          symbol: d.s,
-          close,
-          open,
-          pct: open === 0 ? 0 : ((close - open) / open) * 100,
-        });
-      });
+        onTick({ symbol: d.s, close, open, pct: open === 0 ? 0 : ((close - open) / open) * 100 });
+      };
+      handlers.set(stream, handler);
+
+      if (!this.tickerSubs.has(stream)) this.tickerSubs.set(stream, new Set());
+      this.tickerSubs.get(stream)!.add(handler);
     });
-    if (this.connected) this.send({ method: "SUBSCRIBE", params: streams, id: this.nextId++ });
+
+    // Only SUBSCRIBE to Binance for streams that are newly added (no previous listeners)
+    const newStreams = streams.filter((s) => this.tickerSubs.get(s)!.size === 1);
+    if (newStreams.length > 0 && this.connected)
+      this.send({ method: "SUBSCRIBE", params: newStreams, id: this.nextId++ });
+
     return () => {
-      streams.forEach((s) => this.tickerSubs.delete(s));
-      if (this.connected) this.send({ method: "UNSUBSCRIBE", params: streams, id: this.nextId++ });
+      const streamsToUnsub: string[] = [];
+      streams.forEach((stream) => {
+        const h = handlers.get(stream);
+        if (!h) return;
+        const set = this.tickerSubs.get(stream);
+        if (set) {
+          set.delete(h);
+          // Only unsubscribe from Binance when the last listener is gone
+          if (set.size === 0) {
+            this.tickerSubs.delete(stream);
+            streamsToUnsub.push(stream);
+          }
+        }
+      });
+      if (streamsToUnsub.length > 0 && this.connected)
+        this.send({ method: "UNSUBSCRIBE", params: streamsToUnsub, id: this.nextId++ });
     };
   }
 
