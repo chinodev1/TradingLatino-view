@@ -1647,6 +1647,11 @@ export function PriceChart({ symbol, timeframe }: Props) {
     let cancelled = false;
 
     async function load() {
+      // Clear stale data immediately so the chart doesn't show wrong range while loading
+      candlesRef.current = [];
+      candleSeriesRef.current?.setData([]);
+      volumeSeriesRef.current?.setData([]);
+
       try {
         const klines = await fetchKlines(symbol, timeframe, 1000);
         if (cancelled) return;
@@ -1675,8 +1680,11 @@ export function PriceChart({ symbol, timeframe }: Props) {
         updateADX();
         updateSQZ();
         applyChartType(chartTypeRef.current);
-        resetView();
-        requestAnimationFrame(() => recomputePaneOffsets());
+        // Defer resetView one frame so LWC has processed setData before we set the range
+        requestAnimationFrame(() => {
+          resetView();
+          recomputePaneOffsets();
+        });
 
         if (klines.length > 0) {
           const last = klines[klines.length - 1];
