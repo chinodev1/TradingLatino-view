@@ -1499,10 +1499,10 @@ export function PriceChart({ symbol, timeframe }: Props) {
 
   // ─── Live price in browser tab ────────────────────────────────────────────
   useEffect(() => {
-    if (!lastPrice) { document.title = "TradingView Gratis"; return; }
+    if (!lastPrice) { document.title = "TradingLatino"; return; }
     const dir = lastPrice.pct >= 0 ? "▲" : "▼";
     const sign = lastPrice.pct >= 0 ? "+" : "";
-    document.title = `${symbol} ${formatPrice(lastPrice.value)} ${dir} ${sign}${lastPrice.pct.toFixed(2)}% | TradingView Gratis`;
+    document.title = `${symbol} ${formatPrice(lastPrice.value)} ${dir} ${sign}${lastPrice.pct.toFixed(2)}% | TradingLatino`;
   }, [lastPrice, symbol]);
 
   // ─── Update functions ──────────────────────────────────────────────────────

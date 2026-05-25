@@ -44,7 +44,7 @@ export function Header() {
             <Zap className="h-4 w-4 text-tv-blue" />
           </div>
           <span className="text-sm font-semibold text-tv-text">
-            TradingView <span className="text-tv-text-muted">Jaime</span>
+            TradingLatino
           </span>
         </div>
         <Separator orientation="vertical" className="h-6 bg-tv-border" />
