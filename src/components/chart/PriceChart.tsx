@@ -152,7 +152,6 @@ interface PaneOffset {
 
 export function PriceChart({ symbol, timeframe }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mobileTapRef = useRef<((relX: number, relY: number) => void) | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
@@ -683,20 +682,6 @@ export function PriceChart({ symbol, timeframe }: Props) {
       }
     });
 
-    // ── Mobile drawing: use LWC's subscribeClick for tap-based placement ──
-    // LWC internally distinguishes taps from pan-drags on touch devices,
-    // so this fires only when the user actually taps (not when they pan).
-    // Desktop drawing uses the mousedown/mouseup window listeners instead.
-    const onChartClick = (param: Parameters<Parameters<typeof chart.subscribeClick>[0]>[0]) => {
-      if (!param.point) return;
-      const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
-      if (!isTouchDevice) return;
-      const t = toolRef.current;
-      if (t === "cursor" || t === "brush") return;
-      mobileTapRef.current?.(param.point.x, param.point.y);
-    };
-    chart.subscribeClick(onChartClick);
-
     const tsRangeHandler = () => setRenderTick((t) => t + 1);
     chart.timeScale().subscribeVisibleTimeRangeChange(tsRangeHandler);
     const logicalRangeHandler = () => setRenderTick((t) => t + 1);
@@ -709,7 +694,6 @@ export function PriceChart({ symbol, timeframe }: Props) {
     recomputePaneOffsets();
 
     return () => {
-      chart.unsubscribeClick(onChartClick);
       chart.timeScale().unsubscribeVisibleTimeRangeChange(tsRangeHandler);
       chart.timeScale().unsubscribeVisibleLogicalRangeChange(logicalRangeHandler);
       ro.disconnect();
@@ -1660,9 +1644,6 @@ export function PriceChart({ symbol, timeframe }: Props) {
       }
     };
 
-    // Expose to mobile tap overlay (rendered in JSX above the chart canvas)
-    mobileTapRef.current = handleClickAt;
-
     // ── mouseup: finalize brush/drag OR delegate click to handleClickAt ──
     const onUp = (e: MouseEvent) => {
       if (e.button !== 0) return;
@@ -1708,16 +1689,8 @@ export function PriceChart({ symbol, timeframe }: Props) {
   useEffect(() => {
     if (!chartRef.current) return;
     const isTool = tool !== "cursor";
-    // On touch devices, always keep touch drag enabled so panning works.
-    // Mobile drawing placement is handled via chart.subscribeClick() (fires only on taps, not drags).
-    const isTouchDevice = typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
     chartRef.current.applyOptions({
-      handleScroll: {
-        mouseWheel: true,
-        pressedMouseMove: !isTool,
-        horzTouchDrag: isTouchDevice ? true : !isTool,
-        vertTouchDrag: isTouchDevice ? true : !isTool,
-      },
+      handleScroll: { mouseWheel: true, pressedMouseMove: !isTool, horzTouchDrag: !isTool, vertTouchDrag: !isTool },
     });
   }, [tool]);
 
