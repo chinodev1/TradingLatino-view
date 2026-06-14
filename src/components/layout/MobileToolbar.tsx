@@ -2,7 +2,7 @@
 
 import {
   Minus, Ruler, Trash2, TrendingUp, AlignCenter,
-  Square, ArrowUpRight, Paintbrush, Type, Eraser,
+  Square, ArrowUpRight, Type, Eraser,
   MousePointer2, Percent, X, PenLine,
 } from "lucide-react";
 import { useChartStore, type DrawingTool } from "@/lib/store/chart-store";
@@ -32,7 +32,6 @@ const TOOLS: { key: DrawingTool; Icon: React.FC<{ className?: string }>; label: 
   { key: "fibonacci", Icon: ({ className }) => <Percent className={className} />,       label: "Fibonacci" },
   { key: "rectangle", Icon: ({ className }) => <Square className={className} />,        label: "Rectángulo" },
   { key: "arrow",     Icon: ({ className }) => <ArrowUpRight className={className} />,  label: "Flecha" },
-  { key: "brush",     Icon: ({ className }) => <Paintbrush className={className} />,    label: "Pincel" },
   { key: "text",      Icon: ({ className }) => <Type className={className} />,          label: "Texto" },
   { key: "eraser",    Icon: ({ className }) => <Eraser className={className} />,        label: "Borrar" },
   { key: "measure",   Icon: ({ className }) => <Ruler className={className} />,         label: "% Regla" },
@@ -97,6 +96,21 @@ export function MobileToolbar() {
         </div>
 
         <div className="flex-1 overflow-y-auto py-2">
+          {/* Clear all drawings — prominent at the top */}
+          <button
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              clearDrawings(symbol);
+              close();
+            }}
+            className="flex w-full items-center gap-4 px-5 py-3.5 mb-1 text-tv-red hover:bg-tv-red/10 transition-colors"
+          >
+            <Trash2 className="h-5 w-5 shrink-0" />
+            <span className="text-sm font-semibold">{t.tools.clearDrawings}</span>
+          </button>
+
+          <div className="mx-4 h-px bg-tv-border mb-1" />
+
           {TOOLS.map(({ key, Icon, label }) => {
             const active = tool === key;
             return (
@@ -120,20 +134,6 @@ export function MobileToolbar() {
               </button>
             );
           })}
-
-          <div className="my-2 mx-4 h-px bg-tv-border" />
-
-          <button
-            onPointerDown={(e) => {
-              e.stopPropagation();
-              clearDrawings(symbol);
-              close();
-            }}
-            className="flex w-full items-center gap-4 px-5 py-3.5 text-tv-text-muted hover:bg-tv-panel-hover hover:text-tv-red transition-colors"
-          >
-            <Trash2 className="h-5 w-5 shrink-0" />
-            <span className="text-sm font-medium">{t.tools.clearDrawings}</span>
-          </button>
         </div>
       </div>
     </>
