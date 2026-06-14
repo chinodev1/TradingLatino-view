@@ -80,8 +80,7 @@ export async function fetchExchangeSymbols(): Promise<SymbolInfo[]> {
 
 export async function searchYahooFinance(query: string): Promise<UnifiedSymbolInfo[]> {
   try {
-    const url = `https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&quotesCount=15&newsCount=0&listsCount=0`;
-    const res = await fetch(url, { headers: { "Accept": "application/json" } });
+    const res = await fetch(`/api/yahoo?action=search&q=${encodeURIComponent(query)}`);
     if (!res.ok) return [];
     const data = await res.json();
     const quotes = (data.quotes ?? []) as Array<{
@@ -110,7 +109,7 @@ export async function searchYahooFinance(query: string): Promise<UnifiedSymbolIn
 export async function fetchYahooKlines(symbol: string, interval: Timeframe, limit = 500): Promise<Candle[]> {
   const yahooInterval = toYahooInterval(interval);
   const yahooRange = toYahooRange(interval, limit);
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=${yahooRange}&interval=${yahooInterval}&includePrePost=false`;
+  const url = `/api/yahoo?action=chart&symbol=${encodeURIComponent(symbol)}&interval=${yahooInterval}&range=${yahooRange}`;
   try {
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) throw new Error(`yahoo chart ${res.status}`);
