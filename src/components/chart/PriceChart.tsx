@@ -1683,10 +1683,35 @@ export function PriceChart({ symbol, timeframe }: Props) {
     window.addEventListener("mousedown", onDown, { capture: true });
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup",   onUp,   { capture: true });
+
+    // ── Mobile: convert tap → mousedown+mouseup so drawing tools work ──
+    // When a drawing tool is active, a finger tap on the chart fires synthetic
+    // mouse events. Pans are rejected naturally because dx/dy > 5px in onUp.
+    const onTouchDraw = (e: TouchEvent) => {
+      if (toolRef.current === "cursor") return;
+      const touch = e.touches[0];
+      window.dispatchEvent(new MouseEvent("mousedown", {
+        clientX: touch.clientX, clientY: touch.clientY,
+        button: 0, bubbles: true, cancelable: true,
+      }));
+    };
+    const onTouchEndDraw = (e: TouchEvent) => {
+      if (toolRef.current === "cursor") return;
+      const touch = e.changedTouches[0];
+      window.dispatchEvent(new MouseEvent("mouseup", {
+        clientX: touch.clientX, clientY: touch.clientY,
+        button: 0, bubbles: true, cancelable: true,
+      }));
+    };
+    window.addEventListener("touchstart", onTouchDraw, { capture: true, passive: true });
+    window.addEventListener("touchend",   onTouchEndDraw, { capture: true, passive: true });
+
     return () => {
       window.removeEventListener("mousedown", onDown, { capture: true });
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup",   onUp,   { capture: true });
+      window.removeEventListener("touchstart", onTouchDraw, { capture: true });
+      window.removeEventListener("touchend",   onTouchEndDraw, { capture: true });
     };
   }, []);
 
@@ -1694,8 +1719,16 @@ export function PriceChart({ symbol, timeframe }: Props) {
   useEffect(() => {
     if (!chartRef.current) return;
     const isTool = tool !== "cursor";
+    // On touch devices, always keep touch drag enabled — disabling it freezes mobile.
+    // Drawing tools on mobile work via tap-to-place (touchstart→synthetic mousedown).
+    const isTouchDevice = typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
     chartRef.current.applyOptions({
-      handleScroll: { mouseWheel: true, pressedMouseMove: !isTool, horzTouchDrag: !isTool, vertTouchDrag: !isTool },
+      handleScroll: {
+        mouseWheel: true,
+        pressedMouseMove: !isTool,
+        horzTouchDrag: isTouchDevice ? true : !isTool,
+        vertTouchDrag: isTouchDevice ? true : !isTool,
+      },
     });
   }, [tool]);
 
