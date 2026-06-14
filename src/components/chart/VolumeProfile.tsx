@@ -46,7 +46,8 @@ export function VolumeProfile({
     const container = containerRef.current;
     if (!chart || !candles.length || !series || !container) return;
 
-    setContainerWidth(container.offsetWidth);
+    const currentWidth = container.offsetWidth;
+    setContainerWidth(currentWidth);
 
     const range = chart.timeScale().getVisibleRange();
     if (!range) return;
@@ -103,7 +104,7 @@ export function VolumeProfile({
       const y2 = series.priceToCoordinate(bLow as unknown as number);
       if (y1 === null || y2 === null) continue;
 
-      const effectiveMax = containerWidth > 0 ? Math.min(maxBarWidth, Math.floor(containerWidth * 0.25)) : maxBarWidth;
+      const effectiveMax = Math.min(maxBarWidth, Math.floor(currentWidth * 0.25));
       const barW = (totalVol / maxVol) * effectiveMax;
       const isBullish = bullBuckets[i] >= bearBuckets[i];
       newBars.push({ y1, y2, barWidth: barW, isBullish, isPoc: i === pocBucket });

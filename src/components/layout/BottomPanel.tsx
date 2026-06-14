@@ -35,7 +35,7 @@ export function BottomPanel() {
   const upClass = (n: number) => (n >= 0 ? "text-tv-green" : "text-tv-red");
 
   return (
-    <div className="flex h-9 items-center gap-0 border-t border-tv-border bg-tv-panel px-3 text-xs">
+    <div className="hidden sm:flex h-9 items-center gap-0 border-t border-tv-border bg-tv-panel px-3 text-xs">
       <Stat label={tr.bottomPanel.symbol} value={symbol} />
       <Stat
         label={tr.bottomPanel.change24h}
