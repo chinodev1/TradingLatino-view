@@ -310,6 +310,8 @@ export function PriceChart({ symbol, timeframe }: Props) {
   const [measure, setMeasure] = useState<MeasureState>(INITIAL_MEASURE);
   const [renderTick, setRenderTick] = useState(0);
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; price: number | null } | null>(null);
+  const [loadState, setLoadState] = useState<"loading" | "ok" | "error">("loading");
+  const retryTokenRef = useRef(0);
   const measureRef = useRef(measure);
   measureRef.current = measure;
 
@@ -2029,18 +2031,22 @@ export function PriceChart({ symbol, timeframe }: Props) {
     let unsub: (() => void) | null = null;
     let unsubTicker: (() => void) | null = null;
     let cancelled = false;
+    const myToken = ++retryTokenRef.current;
 
-    async function load() {
+    async function load(attempt = 0) {
       // Clear stale data immediately so the chart doesn't show wrong range while loading
-      candlesRef.current = [];
-      candleSeriesRef.current?.setData([]);
-      volumeSeriesRef.current?.setData([]);
+      if (attempt === 0) {
+        candlesRef.current = [];
+        candleSeriesRef.current?.setData([]);
+        volumeSeriesRef.current?.setData([]);
+        setLoadState("loading");
+      }
 
       try {
         const klines = dataSource === "yahoo"
           ? await fetchYahooKlines(symbol, timeframe, 1000)
           : await fetchKlines(symbol, timeframe, 1000);
-        if (cancelled) return;
+        if (cancelled || retryTokenRef.current !== myToken) return;
         candlesRef.current = klines;
         if (candleSeriesRef.current) {
           candleSeriesRef.current.setData(
@@ -2088,6 +2094,8 @@ export function PriceChart({ symbol, timeframe }: Props) {
             pct: prev.close === 0 ? 0 : ((last.close - prev.close) / prev.close) * 100,
           });
         }
+
+        if (!cancelled && retryTokenRef.current === myToken) setLoadState("ok");
 
         if (dataSource !== "binance") return; // no live data for Yahoo
 
@@ -2162,7 +2170,15 @@ export function PriceChart({ symbol, timeframe }: Props) {
           setLastPrice({ value: tick.close, pct: tick.pct });
         });
       } catch (e) {
-        console.error("Failed to load chart data:", e);
+        if (cancelled || retryTokenRef.current !== myToken) return;
+        console.error(`Failed to load chart data (attempt ${attempt + 1}):`, e);
+        if (attempt < 2) {
+          // Auto-retry up to 2 times with increasing delay
+          await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+          if (!cancelled && retryTokenRef.current === myToken) load(attempt + 1);
+        } else {
+          setLoadState("error");
+        }
       }
     }
 
@@ -2814,6 +2830,34 @@ export function PriceChart({ symbol, timeframe }: Props) {
       {drawingsRender}
       {textLabelsHtmlRender}
       {measureRender}
+
+      {/* Loading overlay */}
+      {loadState === "loading" && (
+        <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
+          <div className="flex items-center gap-2 rounded bg-tv-panel/80 px-4 py-2 text-xs text-tv-text-muted backdrop-blur-sm">
+            <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"/>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+            </svg>
+            Cargando {symbol}…
+          </div>
+        </div>
+      )}
+
+      {/* Error overlay */}
+      {loadState === "error" && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3 rounded border border-tv-border bg-tv-panel px-6 py-5 text-center shadow-xl">
+            <span className="text-sm text-tv-text-muted">No se pudo cargar {symbol}</span>
+            <button
+              onClick={() => { retryTokenRef.current++; setLoadState("loading"); const t = retryTokenRef.current; const run = async () => { try { const klines = dataSource === "yahoo" ? await fetchYahooKlines(symbol, timeframe, 1000) : await fetchKlines(symbol, timeframe, 1000); if (retryTokenRef.current !== t) return; candlesRef.current = klines; candleSeriesRef.current?.setData(klines.map((k) => ({ time: k.time as UTCTimestamp, open: k.open, high: k.high, low: k.low, close: k.close }))); setLoadState("ok"); requestAnimationFrame(() => { resetView(); recomputePaneOffsets(); }); } catch { setLoadState("error"); } }; run(); }}
+              className="rounded bg-tv-blue px-4 py-1.5 text-xs font-semibold text-white hover:bg-tv-blue/80 transition-colors"
+            >
+              Reintentar
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Text tool input — styled to match the committed label appearance */}
       {textDraft && (
