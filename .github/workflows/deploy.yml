@@ -19,6 +19,8 @@ jobs:
 
       - run: npm run build
 
+      - run: cp -r functions out/
+
       - uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}

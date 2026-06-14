@@ -5,7 +5,7 @@ import { Search, ChevronDown, TrendingUp, Bitcoin } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { fetchExchangeSymbols, searchYahooFinance } from "@/lib/binance/rest";
+import { fetchExchangeSymbols, searchYahooFinance, COIN_NAMES } from "@/lib/binance/rest";
 import { useChartStore } from "@/lib/store/chart-store";
 import type { SymbolInfo } from "@/lib/binance/types";
 import type { UnifiedSymbolInfo } from "@/lib/binance/types";
@@ -36,7 +36,7 @@ export function SymbolSelector() {
     if (!open) { setQuery(""); setStockResults([]); }
   }, [open, allCryptoSymbols.length]);
 
-  // Live Yahoo search
+  // Live Yahoo/proxy search for stocks
   useEffect(() => {
     if (tab !== "stocks" || !query.trim()) { setStockResults([]); return; }
     const timer = setTimeout(async () => {
@@ -57,7 +57,11 @@ export function SymbolSelector() {
     const syms = quoteFilter === "ALL" ? allCryptoSymbols : allCryptoSymbols.filter((s) => s.quoteAsset === quoteFilter);
     const q = query.trim().toUpperCase();
     if (!q) return syms.slice(0, 100);
-    return syms.filter((s) => s.symbol.includes(q) || s.baseAsset.includes(q)).slice(0, 100);
+    return syms.filter((s) => {
+      if (s.symbol.includes(q) || s.baseAsset.includes(q)) return true;
+      const name = COIN_NAMES[s.baseAsset];
+      return name ? name.toUpperCase().includes(q) : false;
+    }).slice(0, 100);
   }, [query, allCryptoSymbols, quoteFilter]);
 
   function selectSymbol(sym: string, source: "binance" | "yahoo") {
@@ -104,7 +108,7 @@ export function SymbolSelector() {
         <div className={cn("border-b border-tv-border p-3 space-y-2")}>
           <Input
             autoFocus
-            placeholder={tab === "crypto" ? "BTC, ETH, SOL…" : "AAPL, TSLA, NVDA…"}
+            placeholder={tab === "crypto" ? "BTC, Bitcoin, Ethereum, Solana…" : "AAPL, Tesla, Apple…"}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="bg-tv-bg"
@@ -125,7 +129,7 @@ export function SymbolSelector() {
             </div>
           )}
           {tab === "stocks" && !query.trim() && (
-            <p className="text-[10px] text-tv-text-muted">Buscá acciones, ETFs e índices (ej: AAPL, SPY, QQQ)</p>
+            <p className="text-[10px] text-tv-text-muted">Buscá acciones, ETFs e índices (ej: AAPL, SPY, Tesla)</p>
           )}
         </div>
 
@@ -135,23 +139,26 @@ export function SymbolSelector() {
             {tab === "crypto" && filteredCrypto.length === 0 && (
               <div className="p-4 text-center text-xs text-tv-text-muted">Sin resultados</div>
             )}
-            {tab === "crypto" && filteredCrypto.map((s) => (
-              <button
-                key={s.symbol}
-                onClick={() => selectSymbol(s.symbol, "binance")}
-                className={cn("flex items-center justify-between border-b border-tv-border px-4 py-2 text-left text-xs hover:bg-tv-panel-hover",
-                  s.symbol === symbol && "bg-tv-panel-hover")}
-              >
-                <div className="flex items-center gap-3">
-                  <span className="font-semibold text-tv-text">{s.baseAsset}</span>
-                  <span className="text-tv-text-muted">/ {s.quoteAsset}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-tv-text-dim">Binance</span>
-                  <span className="text-tv-text-muted">{s.symbol}</span>
-                </div>
-              </button>
-            ))}
+            {tab === "crypto" && filteredCrypto.map((s) => {
+              const coinName = COIN_NAMES[s.baseAsset];
+              return (
+                <button
+                  key={s.symbol}
+                  onClick={() => selectSymbol(s.symbol, "binance")}
+                  className={cn("flex items-center justify-between border-b border-tv-border px-4 py-2 text-left text-xs hover:bg-tv-panel-hover",
+                    s.symbol === symbol && "bg-tv-panel-hover")}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="font-semibold text-tv-text shrink-0">{s.baseAsset}</span>
+                    {coinName && <span className="text-tv-text-muted truncate">{coinName}</span>}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 ml-2">
+                    <span className="text-[10px] text-tv-text-dim">/{s.quoteAsset}</span>
+                    <span className="text-[10px] text-tv-text-dim opacity-50">Binance</span>
+                  </div>
+                </button>
+              );
+            })}
 
             {/* Stocks results */}
             {tab === "stocks" && !query.trim() && (
@@ -174,11 +181,11 @@ export function SymbolSelector() {
                 className={cn("flex items-center justify-between border-b border-tv-border px-4 py-2 text-left text-xs hover:bg-tv-panel-hover",
                   s.symbol === symbol && "bg-tv-panel-hover")}
               >
-                <div className="flex items-center gap-3">
-                  <span className="font-semibold text-tv-text">{s.symbol}</span>
-                  {s.name && <span className="text-tv-text-muted truncate max-w-[160px]">{s.name}</span>}
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="font-semibold text-tv-text shrink-0">{s.symbol}</span>
+                  {s.name && <span className="text-tv-text-muted truncate">{s.name}</span>}
                 </div>
-                <span className="text-[10px] shrink-0 rounded bg-tv-panel-hover px-1.5 py-0.5 text-tv-text-muted">
+                <span className="text-[10px] shrink-0 rounded bg-tv-panel-hover px-1.5 py-0.5 text-tv-text-muted ml-2">
                   {s.exchange || "Stock"}
                 </span>
               </button>

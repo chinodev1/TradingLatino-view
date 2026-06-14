@@ -2,6 +2,40 @@ import type { Candle, SymbolInfo, Ticker24h, Timeframe, UnifiedSymbolInfo, Symbo
 
 const BASE = "https://api.binance.com/api/v3";
 
+export const COIN_NAMES: Record<string, string> = {
+  BTC: "Bitcoin", ETH: "Ethereum", BNB: "BNB", SOL: "Solana", XRP: "Ripple",
+  DOGE: "Dogecoin", ADA: "Cardano", AVAX: "Avalanche", LINK: "Chainlink", DOT: "Polkadot",
+  MATIC: "Polygon", SHIB: "Shiba Inu", LTC: "Litecoin", TRX: "TRON", UNI: "Uniswap",
+  ATOM: "Cosmos", ETC: "Ethereum Classic", XLM: "Stellar", ALGO: "Algorand",
+  ICP: "Internet Computer", FIL: "Filecoin", NEAR: "NEAR Protocol", FTM: "Fantom",
+  VET: "VeChain", HBAR: "Hedera", EOS: "EOS", AAVE: "Aave", MKR: "Maker",
+  GRT: "The Graph", CRV: "Curve", SNX: "Synthetix", COMP: "Compound", SUSHI: "SushiSwap",
+  YFI: "yearn.finance", BAT: "Basic Attention Token", ZEC: "Zcash", DASH: "Dash",
+  XMR: "Monero", NEO: "NEO", ZIL: "Zilliqa", ENJ: "Enjin", CHZ: "Chiliz",
+  MANA: "Decentraland", SAND: "The Sandbox", AXS: "Axie Infinity", GALA: "Gala",
+  GMT: "STEPN", APE: "ApeCoin", OP: "Optimism", ARB: "Arbitrum", SUI: "Sui",
+  SEI: "Sei", TIA: "Celestia", INJ: "Injective", BLUR: "Blur", PEPE: "Pepe",
+  WIF: "dogwifhat", BONK: "Bonk", JUP: "Jupiter", PYTH: "Pyth Network",
+  STRK: "Starknet", ENA: "Ethena", TON: "Toncoin", NOT: "Notcoin",
+  RENDER: "Render", RNDR: "Render", IMX: "Immutable", LDO: "Lido",
+  PENDLE: "Pendle", DYDX: "dYdX", GMX: "GMX", FLOKI: "FLOKI", WLD: "Worldcoin",
+  RUNE: "THORChain", KSM: "Kusama", CAKE: "PancakeSwap", FET: "Fetch.ai",
+  AGIX: "SingularityNET", JASMY: "JasmyCoin", TURBO: "Turbo", TAO: "Bittensor",
+  W: "Wormhole", IO: "io.net", ZK: "ZKsync", RONIN: "Ronin", SAGA: "Saga",
+  ZETA: "ZetaChain", EIGEN: "EigenLayer", ORDI: "ORDI", BOME: "Book of Meme",
+  OMNI: "Omni Network", ETHFI: "ether.fi", REZ: "Renzo", BB: "BounceBit",
+  XAI: "Xai", MANTA: "Manta Network", LISTA: "Lista DAO", ALT: "AltLayer",
+  PEOPLE: "ConstitutionDAO", LUNC: "Terra Luna Classic", CFX: "Conflux",
+  MAGIC: "Treasure", RSR: "Reserve Rights", OCEAN: "Ocean Protocol", ONT: "Ontology",
+  HOT: "Holo", KAVA: "Kava", THETA: "Theta Network", CRO: "Cronos", HNT: "Helium",
+  FLOW: "Flow", BCH: "Bitcoin Cash", XTZ: "Tezos", WAVES: "Waves",
+  EGLD: "MultiversX", ROSE: "Oasis", QNT: "Quant", DCR: "Decred",
+  ANKR: "Ankr", ONE: "Harmony", CELR: "Celer Network", ICX: "ICON",
+  BAND: "Band Protocol", BAL: "Balancer", CTSI: "Cartesi", DENT: "DENT",
+  CHR: "Chromia", ALICE: "My Neighbor Alice", TLM: "Alien Worlds",
+  SUPER: "SuperVerse", MASK: "Mask Network", PIXEL: "Pixels",
+};
+
 export async function fetchKlines(
   symbol: string,
   interval: Timeframe,
