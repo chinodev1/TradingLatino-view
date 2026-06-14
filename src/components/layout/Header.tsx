@@ -90,7 +90,7 @@ export function Header() {
 
         <Separator orientation="vertical" className="mx-1 h-6 bg-tv-border" />
         <IndicatorMenu />
-        <Separator orientation="vertical" className="mx-1 h-6 bg-tv-border" />
+        <Separator orientation="vertical" className="mx-1 h-6 bg-tv-border hidden sm:block" />
 
         {/* Undo */}
         <Tooltip>
@@ -98,7 +98,7 @@ export function Header() {
             onClick={undo}
             disabled={undoStack.length === 0}
             className={cn(
-              "flex h-7 w-7 items-center justify-center rounded transition-colors",
+              "hidden sm:flex h-7 w-7 items-center justify-center rounded transition-colors",
               undoStack.length > 0
                 ? "text-tv-text-muted hover:bg-tv-panel-hover hover:text-tv-text"
                 : "cursor-not-allowed text-tv-text-dim opacity-30",
@@ -114,7 +114,7 @@ export function Header() {
         <Tooltip>
           <TooltipTrigger
             onClick={() => setLanguage(language === "es" ? "en" : "es")}
-            className="flex h-7 items-center justify-center rounded px-2 text-[11px] font-semibold text-tv-text-muted transition-colors hover:bg-tv-panel-hover hover:text-tv-text"
+            className="hidden sm:flex h-7 items-center justify-center rounded px-2 text-[11px] font-semibold text-tv-text-muted transition-colors hover:bg-tv-panel-hover hover:text-tv-text"
           >
             {t.langButton}
           </TooltipTrigger>

@@ -45,19 +45,23 @@ export function BottomPanel() {
         label={tr.bottomPanel.high24h}
         value={ticker ? formatPrice(ticker.highPrice) : "—"}
         valueClass="text-tv-green"
+        className="hidden sm:flex"
       />
       <Stat
         label={tr.bottomPanel.low24h}
         value={ticker ? formatPrice(ticker.lowPrice) : "—"}
         valueClass="text-tv-red"
+        className="hidden sm:flex"
       />
       <Stat
         label={tr.bottomPanel.vol24hBase}
         value={ticker ? formatVolume(ticker.volume) : "—"}
+        className="hidden sm:flex"
       />
       <Stat
         label={tr.bottomPanel.vol24hUsdt}
         value={ticker ? formatVolume(ticker.quoteVolume) : "—"}
+        className="hidden sm:flex"
       />
       <div className="ml-auto flex items-center gap-2 text-[10px] text-tv-text-dim">
         <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-tv-green" />
@@ -71,13 +75,15 @@ function Stat({
   label,
   value,
   valueClass,
+  className,
 }: {
   label: string;
   value: string;
   valueClass?: string;
+  className?: string;
 }) {
   return (
-    <div className="flex items-center gap-1.5 border-r border-tv-border px-3">
+    <div className={cn("flex items-center gap-1.5 border-r border-tv-border px-3", className)}>
       <span className="text-tv-text-dim">{label}</span>
       <span className={cn("font-medium tabular-nums", valueClass ?? "text-tv-text")}>
         {value}

@@ -5,7 +5,7 @@ import { SymbolPanel } from "@/components/layout/SymbolPanel";
 
 export function RightSidebar() {
   return (
-    <aside className="flex w-64 flex-col overflow-hidden border-l border-tv-border bg-tv-panel">
+    <aside className="hidden md:flex w-64 flex-col overflow-hidden border-l border-tv-border bg-tv-panel">
       {/* Watchlist — takes remaining space, scrolls internally */}
       <div className="min-h-0 flex-1 overflow-hidden">
         <Watchlist />

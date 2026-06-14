@@ -41,7 +41,7 @@ export function TimeframeSelector() {
           key={t}
           onClick={() => setTf(t)}
           className={cn(
-            "rounded px-2 py-1 text-xs font-medium transition-colors",
+            "hidden sm:block rounded px-2 py-1 text-xs font-medium transition-colors",
             tf === t
               ? "bg-tv-panel-hover text-tv-text"
               : "text-tv-text-muted hover:bg-tv-panel-hover hover:text-tv-text",
@@ -60,9 +60,8 @@ export function TimeframeSelector() {
               : "text-tv-text-muted hover:bg-tv-panel-hover hover:text-tv-text",
           )}
         >
-          {!activeInQuick && (
-            <span className="mr-0.5">{tfLabel(tf)}</span>
-          )}
+          {/* Mobile: always show current TF. Desktop: only when not in quick buttons */}
+          <span className={cn("mr-0.5", activeInQuick && "sm:hidden")}>{tfLabel(tf)}</span>
           <ChevronDown className="h-3 w-3" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-36 bg-tv-panel">
