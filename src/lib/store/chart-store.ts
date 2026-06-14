@@ -276,6 +276,7 @@ interface ChartState {
   logScale: boolean;
   triggerResetView: (() => void) | null;
   triggerScreenshot: (() => void) | null;
+  favoriteIndicators: IndicatorKey[];
 
   // Actions
   setSymbol: (s: string) => void;
@@ -324,6 +325,7 @@ interface ChartState {
   setLogScale: (v: boolean) => void;
   setTriggerResetView: (fn: (() => void) | null) => void;
   setTriggerScreenshot: (fn: (() => void) | null) => void;
+  toggleFavoriteIndicator: (key: IndicatorKey) => void;
 }
 
 function snap(s: ChartState): DrawingSnapshot {
@@ -407,6 +409,7 @@ export const useChartStore = create<ChartState>()(
       logScale: false,
       triggerResetView: null,
       triggerScreenshot: null,
+      favoriteIndicators: [] as IndicatorKey[],
 
       setSymbol: (symbol) => set({ symbol }),
       setLanguage: (language) => set({ language }),
@@ -547,10 +550,16 @@ export const useChartStore = create<ChartState>()(
       setLogScale: (logScale) => set({ logScale }),
       setTriggerResetView: (triggerResetView) => set({ triggerResetView }),
       setTriggerScreenshot: (triggerScreenshot) => set({ triggerScreenshot }),
+      toggleFavoriteIndicator: (key) =>
+        set((s) => ({
+          favoriteIndicators: s.favoriteIndicators.includes(key)
+            ? s.favoriteIndicators.filter((k) => k !== key)
+            : [...s.favoriteIndicators, key],
+        })),
     }),
     {
       name: "tv-gratis-chart-state",
-      version: 11,
+      version: 12,
       migrate: (stored: unknown, fromVersion: number) => {
         // Chained migrations — each step mutates `state` so multi-version jumps apply all patches
         let state = stored as Record<string, unknown>;
@@ -651,6 +660,9 @@ export const useChartStore = create<ChartState>()(
             },
           };
         }
+        if (fromVersion < 12) {
+          state = { ...state, favoriteIndicators: state.favoriteIndicators ?? [] };
+        }
         return state;
       },
       partialize: (s) => ({
@@ -672,6 +684,7 @@ export const useChartStore = create<ChartState>()(
         textLabels: s.textLabels,
         fiboZones: s.fiboZones,
         logScale: s.logScale,
+        favoriteIndicators: s.favoriteIndicators,
       }),
       merge: (persisted, current) => {
         const p = persisted as Partial<typeof current>;

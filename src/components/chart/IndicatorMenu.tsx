@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, Check } from "lucide-react";
+import { Activity, Check, Star } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useChartStore, type IndicatorKey, type IndicatorConfig } from "@/lib/store/chart-store";
 import { useTranslation } from "@/lib/useTranslation";
+import { cn } from "@/lib/utils";
 
 interface Entry {
   key: IndicatorKey;
@@ -20,16 +21,16 @@ interface Entry {
 }
 
 const ENTRIES: Entry[] = [
-  { key: "ema20",   groupKey: "Medias móviles", label: (c) => `EMA ${c.ema20}` },
-  { key: "ema50",   groupKey: "Medias móviles", label: (c) => `EMA ${c.ema50}` },
-  { key: "ema200",  groupKey: "Medias móviles", label: (c) => `EMA ${c.ema200}` },
-  { key: "fourEma", groupKey: "Medias móviles", label: (c) => `4EMA (${c.fourEma1}, ${c.fourEma2}, ${c.fourEma3}, ${c.fourEma4})` },
-  { key: "volume",  groupKey: "Volumen",         label: (_c, v) => v },
-  { key: "vrvp",    groupKey: "Volumen",         label: () => "Volume Profile (VRVP)" },
-  { key: "rsi",     groupKey: "Osciladores",     label: (c) => `RSI (${c.rsi})` },
-  { key: "macd",    groupKey: "Osciladores",     label: (c) => `MACD (${c.macdFast}, ${c.macdSlow}, ${c.macdSignal})` },
-  { key: "adx",     groupKey: "Osciladores",     label: (c) => `DMI/ADX/KeyLevel (DI ${c.adxDiLen}, ADX ${c.adxLen}, KL ${c.adxKeyLevel})` },
-  { key: "sqzMom",  groupKey: "Osciladores",     label: (c) => `Squeeze Momentum BB ${c.sqzBbLen}/${c.sqzKcLen}` },
+  { key: "ema20",      groupKey: "Medias móviles", label: (c) => `EMA ${c.ema20}` },
+  { key: "ema50",      groupKey: "Medias móviles", label: (c) => `EMA ${c.ema50}` },
+  { key: "ema200",     groupKey: "Medias móviles", label: (c) => `EMA ${c.ema200}` },
+  { key: "fourEma",    groupKey: "Medias móviles", label: (c) => `4EMA (${c.fourEma1}, ${c.fourEma2}, ${c.fourEma3}, ${c.fourEma4})` },
+  { key: "volume",     groupKey: "Volumen",         label: (_c, v) => v },
+  { key: "vrvp",       groupKey: "Volumen",         label: () => "Volume Profile (VRVP)" },
+  { key: "rsi",        groupKey: "Osciladores",     label: (c) => `RSI (${c.rsi})` },
+  { key: "macd",       groupKey: "Osciladores",     label: (c) => `MACD (${c.macdFast}, ${c.macdSlow}, ${c.macdSignal})` },
+  { key: "adx",        groupKey: "Osciladores",     label: (c) => `DMI/ADX/KeyLevel (DI ${c.adxDiLen}, ADX ${c.adxLen}, KL ${c.adxKeyLevel})` },
+  { key: "sqzMom",     groupKey: "Osciladores",     label: (c) => `Squeeze Momentum BB ${c.sqzBbLen}/${c.sqzKcLen}` },
   { key: "bb",         groupKey: "Osciladores",     label: (c) => `Bollinger Bands (${c.bbPeriod}, ${c.bbMult})` },
   { key: "vwap",       groupKey: "Osciladores",     label: () => "VWAP" },
   { key: "stochRsi",   groupKey: "Osciladores",     label: (c) => `Stochastic RSI (${c.stochRsiLen}, ${c.stochRsiPeriod})` },
@@ -40,10 +41,53 @@ const ENTRIES: Entry[] = [
   { key: "mfi",        groupKey: "Osciladores",     label: (c) => `MFI (${c.mfiPeriod})` },
 ];
 
+const ENTRY_MAP = Object.fromEntries(ENTRIES.map((e) => [e.key, e])) as Record<IndicatorKey, Entry>;
+
+function IndicatorRow({
+  entry,
+  active,
+  isFav,
+  onToggle,
+  onToggleFav,
+  config,
+  volLabel,
+}: {
+  entry: Entry;
+  active: boolean;
+  isFav: boolean;
+  onToggle: () => void;
+  onToggleFav: (e: React.MouseEvent) => void;
+  config: IndicatorConfig;
+  volLabel: string;
+}) {
+  return (
+    <DropdownMenuItem
+      closeOnClick={false}
+      onClick={onToggle}
+      className="flex items-center gap-2 text-xs"
+    >
+      <button
+        onClick={onToggleFav}
+        className={cn(
+          "shrink-0 rounded p-0.5 transition-colors hover:bg-tv-panel-hover",
+          isFav ? "text-yellow-400" : "text-tv-text-dim hover:text-yellow-400",
+        )}
+        aria-label="Favorito"
+      >
+        <Star className={cn("h-3 w-3", isFav && "fill-yellow-400")} />
+      </button>
+      <span className="flex-1">{entry.label(config, volLabel)}</span>
+      {active && <Check className="h-3.5 w-3.5 shrink-0 text-tv-blue" />}
+    </DropdownMenuItem>
+  );
+}
+
 export function IndicatorMenu() {
   const indicators = useChartStore((s) => s.indicators);
   const config = useChartStore((s) => s.config);
   const toggle = useChartStore((s) => s.toggleIndicator);
+  const favoriteIndicators = useChartStore((s) => s.favoriteIndicators);
+  const toggleFavoriteIndicator = useChartStore((s) => s.toggleFavoriteIndicator);
   const t = useTranslation();
 
   const groups = ENTRIES.reduce<Record<string, Entry[]>>((acc, i) => {
@@ -52,6 +96,7 @@ export function IndicatorMenu() {
   }, {});
 
   const activeCount = Object.values(indicators).filter(Boolean).length;
+  const favSet = new Set(favoriteIndicators);
 
   return (
     <DropdownMenu>
@@ -65,22 +110,54 @@ export function IndicatorMenu() {
         )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-72 bg-tv-panel">
+
+        {/* Favoritos — only shown when at least one is starred */}
+        {favoriteIndicators.length > 0 && (
+          <>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-yellow-400">
+                <Star className="h-3 w-3 fill-yellow-400" />
+                Favoritos
+              </DropdownMenuLabel>
+              {favoriteIndicators.map((key) => {
+                const entry = ENTRY_MAP[key];
+                if (!entry) return null;
+                return (
+                  <IndicatorRow
+                    key={key}
+                    entry={entry}
+                    active={indicators[key]}
+                    isFav={true}
+                    onToggle={() => toggle(key)}
+                    onToggleFav={(e) => { e.stopPropagation(); toggleFavoriteIndicator(key); }}
+                    config={config}
+                    volLabel={t.indicatorLabels.volume}
+                  />
+                );
+              })}
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+          </>
+        )}
+
+        {/* All groups */}
         {Object.entries(groups).map(([groupKey, items], idx) => (
           <DropdownMenuGroup key={groupKey}>
             {idx > 0 && <DropdownMenuSeparator />}
             <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-tv-text-muted">
               {t.groups[groupKey as keyof typeof t.groups] ?? groupKey}
             </DropdownMenuLabel>
-            {items.map((i) => (
-              <DropdownMenuItem
-                key={i.key}
-                closeOnClick={false}
-                onClick={() => toggle(i.key)}
-                className="flex items-center justify-between text-xs"
-              >
-                <span>{i.label(config, t.indicatorLabels.volume)}</span>
-                {indicators[i.key] && <Check className="h-3.5 w-3.5 text-tv-blue" />}
-              </DropdownMenuItem>
+            {items.map((entry) => (
+              <IndicatorRow
+                key={entry.key}
+                entry={entry}
+                active={indicators[entry.key]}
+                isFav={favSet.has(entry.key)}
+                onToggle={() => toggle(entry.key)}
+                onToggleFav={(e) => { e.stopPropagation(); toggleFavoriteIndicator(entry.key); }}
+                config={config}
+                volLabel={t.indicatorLabels.volume}
+              />
             ))}
           </DropdownMenuGroup>
         ))}
