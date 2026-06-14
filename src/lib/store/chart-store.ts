@@ -15,13 +15,21 @@ export type IndicatorKey =
   | "fourEma"
   | "adx"
   | "sqzMom"
-  | "vrvp";
+  | "vrvp"
+  | "bb"
+  | "vwap"
+  | "stochRsi"
+  | "williamsR"
+  | "atr"
+  | "cci"
+  | "obv"
+  | "mfi";
 
-export type DrawingTool = "cursor" | "hline" | "measure" | "eraser" | "trendline" | "dashline" | "vline" | "rectangle" | "arrow" | "brush" | "text";
+export type DrawingTool = "cursor" | "hline" | "measure" | "eraser" | "trendline" | "dashline" | "vline" | "rectangle" | "arrow" | "brush" | "text" | "fibonacci";
 
 export type CursorMode = "cross" | "dot" | "arrow";
 
-export type ChartType = "candlestick" | "bar" | "line" | "area";
+export type ChartType = "candlestick" | "bar" | "line" | "area" | "heikinashi";
 
 export interface TrendLine {
   id: string;
@@ -78,6 +86,13 @@ export interface TextLabel {
   text: string;
 }
 
+export interface FiboZone {
+  id: string;
+  symbol: string;
+  a: { time: number; price: number };
+  b: { time: number; price: number };
+}
+
 function genId() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
@@ -119,6 +134,22 @@ export interface IndicatorConfig {
   sqzDotOff: string;
   // SQZ chart style
   sqzStyle: "columns" | "line" | "area";
+  // Bollinger Bands
+  bbPeriod: number;
+  bbMult: number;
+  // Stochastic RSI
+  stochRsiLen: number;
+  stochRsiPeriod: number;
+  stochRsiSmoothK: number;
+  stochRsiSmoothD: number;
+  // Williams %R
+  williamsRPeriod: number;
+  // ATR
+  atrPeriod: number;
+  // CCI
+  cciPeriod: number;
+  // MFI
+  mfiPeriod: number;
 }
 
 export const DEFAULT_CONFIG: IndicatorConfig = {
@@ -150,6 +181,16 @@ export const DEFAULT_CONFIG: IndicatorConfig = {
   sqzDotOn: "#000000",
   sqzDotOff: "#787b86",
   sqzStyle: "columns" as const,
+  bbPeriod: 20,
+  bbMult: 2.0,
+  stochRsiLen: 14,
+  stochRsiPeriod: 14,
+  stochRsiSmoothK: 3,
+  stochRsiSmoothD: 3,
+  williamsRPeriod: 14,
+  atrPeriod: 14,
+  cciPeriod: 20,
+  mfiPeriod: 14,
 };
 
 export const INDICATOR_COLORS: Record<IndicatorKey, string> = {
@@ -163,6 +204,14 @@ export const INDICATOR_COLORS: Record<IndicatorKey, string> = {
   adx: "#b2b5be",
   sqzMom: "#00c853",
   vrvp: "#2962ff",
+  bb: "#2962ff",
+  vwap: "#ff9800",
+  stochRsi: "#2962ff",
+  williamsR: "#ab47bc",
+  atr: "#ffb74d",
+  cci: "#26a69a",
+  obv: "#2962ff",
+  mfi: "#ff6d00",
 };
 
 /** Colors for each of the 4 EMA lines: slot1=orange(55), slot2=blue(10), slot3/4=dim */
@@ -190,6 +239,7 @@ type DrawingSnapshot = {
   arrowLines: ArrowLine[];
   brushStrokes: BrushStroke[];
   textLabels: TextLabel[];
+  fiboZones: FiboZone[];
 };
 
 interface ChartState {
@@ -216,12 +266,16 @@ interface ChartState {
   arrowLines: ArrowLine[];
   brushStrokes: BrushStroke[];
   textLabels: TextLabel[];
+  fiboZones: FiboZone[];
   undoStack: DrawingSnapshot[];
   symbolDialogOpen: boolean;
   /** Which indicator's settings dialog is open (null = closed) */
   settingsTarget: IndicatorKey | null;
   /** Increments each time clearDrawings is called — lets PriceChart reset local measure state */
   measureClearToken: number;
+  logScale: boolean;
+  triggerResetView: (() => void) | null;
+  triggerScreenshot: (() => void) | null;
 
   // Actions
   setSymbol: (s: string) => void;
@@ -265,6 +319,11 @@ interface ChartState {
   undo: () => void;
   setSymbolDialogOpen: (v: boolean) => void;
   setSettingsTarget: (k: IndicatorKey | null) => void;
+  addFiboZone: (a: { time: number; price: number }, b: { time: number; price: number }, symbol: string) => void;
+  removeFiboZone: (id: string) => void;
+  setLogScale: (v: boolean) => void;
+  setTriggerResetView: (fn: (() => void) | null) => void;
+  setTriggerScreenshot: (fn: (() => void) | null) => void;
 }
 
 function snap(s: ChartState): DrawingSnapshot {
@@ -277,6 +336,7 @@ function snap(s: ChartState): DrawingSnapshot {
     arrowLines: s.arrowLines,
     brushStrokes: s.brushStrokes,
     textLabels: s.textLabels,
+    fiboZones: s.fiboZones,
   };
 }
 
@@ -296,6 +356,14 @@ export const useChartStore = create<ChartState>()(
         adx: true,
         sqzMom: true,
         vrvp: true,
+        bb: false,
+        vwap: false,
+        stochRsi: false,
+        williamsR: false,
+        atr: false,
+        cci: false,
+        obv: false,
+        mfi: false,
       },
       hidden: {
         ema20: false,
@@ -308,6 +376,14 @@ export const useChartStore = create<ChartState>()(
         adx: false,
         sqzMom: false,
         vrvp: false,
+        bb: false,
+        vwap: false,
+        stochRsi: false,
+        williamsR: false,
+        atr: false,
+        cci: false,
+        obv: false,
+        mfi: false,
       },
       config: { ...DEFAULT_CONFIG },
       watchlist: DEFAULT_WATCHLIST,
@@ -323,10 +399,14 @@ export const useChartStore = create<ChartState>()(
       arrowLines: [],
       brushStrokes: [],
       textLabels: [],
+      fiboZones: [],
       undoStack: [],
       symbolDialogOpen: false,
       settingsTarget: null,
       measureClearToken: 0,
+      logScale: false,
+      triggerResetView: null,
+      triggerScreenshot: null,
 
       setSymbol: (symbol) => set({ symbol }),
       setLanguage: (language) => set({ language }),
@@ -440,6 +520,7 @@ export const useChartStore = create<ChartState>()(
           arrowLines:   symbol ? state.arrowLines.filter((a)   => a.symbol !== symbol)   : [],
           brushStrokes: symbol ? state.brushStrokes.filter((b) => b.symbol !== symbol)   : [],
           textLabels:   symbol ? state.textLabels.filter((t)   => t.symbol !== symbol)   : [],
+          fiboZones:    symbol ? state.fiboZones.filter((f)    => f.symbol !== symbol)   : [],
           measureClearToken: (state.measureClearToken ?? 0) + 1,
         })),
       clearPriceLines: (symbol) =>
@@ -456,10 +537,20 @@ export const useChartStore = create<ChartState>()(
         }),
       setSymbolDialogOpen: (symbolDialogOpen) => set({ symbolDialogOpen }),
       setSettingsTarget: (settingsTarget) => set({ settingsTarget }),
+      addFiboZone: (a, b, symbol) =>
+        set((state) => ({
+          undoStack: [...state.undoStack.slice(-19), snap(state)],
+          fiboZones: [...state.fiboZones, { id: genId(), symbol, a, b }],
+        })),
+      removeFiboZone: (id) =>
+        set((state) => ({ fiboZones: state.fiboZones.filter((f) => f.id !== id) })),
+      setLogScale: (logScale) => set({ logScale }),
+      setTriggerResetView: (triggerResetView) => set({ triggerResetView }),
+      setTriggerScreenshot: (triggerScreenshot) => set({ triggerScreenshot }),
     }),
     {
       name: "tv-gratis-chart-state",
-      version: 10,
+      version: 11,
       migrate: (stored: unknown, fromVersion: number) => {
         // Chained migrations — each step mutates `state` so multi-version jumps apply all patches
         let state = stored as Record<string, unknown>;
@@ -538,6 +629,28 @@ export const useChartStore = create<ChartState>()(
         if (fromVersion < 10) {
           state = { ...state, dashLines: state.dashLines ?? [] };
         }
+        if (fromVersion < 11) {
+          const prevInds = (state.indicators ?? {}) as Record<string, unknown>;
+          state = {
+            ...state,
+            logScale: false,
+            fiboZones: [],
+            indicators: {
+              bb: false, vwap: false, stochRsi: false, williamsR: false,
+              atr: false, cci: false, obv: false, mfi: false,
+              ...prevInds,
+            },
+            hidden: {
+              bb: false, vwap: false, stochRsi: false, williamsR: false,
+              atr: false, cci: false, obv: false, mfi: false,
+              ...((state.hidden as Record<string, unknown>) ?? {}),
+            },
+            config: {
+              ...DEFAULT_CONFIG,
+              ...((state.config as Record<string, unknown>) ?? {}),
+            },
+          };
+        }
         return state;
       },
       partialize: (s) => ({
@@ -557,6 +670,8 @@ export const useChartStore = create<ChartState>()(
         arrowLines: s.arrowLines,
         brushStrokes: s.brushStrokes,
         textLabels: s.textLabels,
+        fiboZones: s.fiboZones,
+        logScale: s.logScale,
       }),
       merge: (persisted, current) => {
         const p = persisted as Partial<typeof current>;

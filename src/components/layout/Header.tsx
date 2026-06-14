@@ -1,6 +1,6 @@
 "use client";
 
-import { CandlestickChart, AreaChart, BarChart2, LineChart, Undo2, Zap, ChevronDown } from "lucide-react";
+import { CandlestickChart, AreaChart, BarChart2, LineChart, Undo2, Zap, ChevronDown, ZoomOut, Camera } from "lucide-react";
 import { SymbolSelector } from "@/components/chart/SymbolSelector";
 import { TimeframeSelector } from "@/components/chart/TimeframeSelector";
 import { IndicatorMenu } from "@/components/chart/IndicatorMenu";
@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 
 const CHART_TYPE_KEYS: { key: ChartType; Icon: typeof CandlestickChart }[] = [
   { key: "candlestick", Icon: CandlestickChart },
+  { key: "heikinashi", Icon: CandlestickChart },
   { key: "bar",         Icon: BarChart2 },
   { key: "line",        Icon: LineChart },
   { key: "area",        Icon: AreaChart },
@@ -30,10 +31,14 @@ export function Header() {
   const undoStack = useChartStore((s) => s.undoStack);
   const language = useChartStore((s) => s.language);
   const setLanguage = useChartStore((s) => s.setLanguage);
+  const logScale = useChartStore((s) => s.logScale);
+  const setLogScale = useChartStore((s) => s.setLogScale);
+  const triggerResetView = useChartStore((s) => s.triggerResetView);
+  const triggerScreenshot = useChartStore((s) => s.triggerScreenshot);
   const t = useTranslation();
 
   const CHART_TYPES = CHART_TYPE_KEYS.map(({ key, Icon }) => ({
-    key, Icon, label: t.chartTypes[key],
+    key, Icon, label: key === "heikinashi" ? "Heikin Ashi" : t.chartTypes[key as keyof typeof t.chartTypes],
   }));
 
   return (
@@ -111,6 +116,39 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-2">
+        <Tooltip>
+          <TooltipTrigger
+            onClick={() => triggerResetView?.()}
+            className="hidden sm:flex h-7 w-7 items-center justify-center rounded text-tv-text-muted transition-colors hover:bg-tv-panel-hover hover:text-tv-text"
+          >
+            <ZoomOut className="h-3.5 w-3.5" />
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="text-xs">Reset View (Alt+R)</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger
+            onClick={() => triggerScreenshot?.()}
+            className="hidden sm:flex h-7 w-7 items-center justify-center rounded text-tv-text-muted transition-colors hover:bg-tv-panel-hover hover:text-tv-text"
+          >
+            <Camera className="h-3.5 w-3.5" />
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="text-xs">Screenshot</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger
+            onClick={() => setLogScale(!logScale)}
+            className={cn(
+              "hidden sm:flex h-7 items-center justify-center rounded px-2 text-[11px] font-semibold transition-colors",
+              logScale ? "bg-tv-blue/20 text-tv-blue" : "text-tv-text-muted hover:bg-tv-panel-hover hover:text-tv-text",
+            )}
+          >
+            {logScale ? "Log" : "Lin"}
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="text-xs">Toggle Log/Linear Scale</TooltipContent>
+        </Tooltip>
+
         <Tooltip>
           <TooltipTrigger
             onClick={() => setLanguage(language === "es" ? "en" : "es")}

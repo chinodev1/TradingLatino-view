@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Minus, Ruler, Trash2, TrendingUp, AlignCenter,
-  Square, ArrowUpRight, Paintbrush, Type, Eraser, MousePointer2,
+  Square, ArrowUpRight, Paintbrush, Type, Eraser, MousePointer2, Percent,
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useChartStore, type DrawingTool, type CursorMode } from "@/lib/store/chart-store";
@@ -35,6 +35,7 @@ const DRAW_TOOL_ICONS: { key: DrawingTool; icon: typeof MousePointer2 }[] = [
   { key: "vline",     icon: AlignCenter },
   { key: "trendline", icon: TrendingUp },
   { key: "dashline",  icon: DashLineIcon as typeof MousePointer2 },
+  { key: "fibonacci", icon: Percent },
   { key: "rectangle", icon: Square },
   { key: "arrow",     icon: ArrowUpRight },
   { key: "brush",     icon: Paintbrush },
@@ -113,7 +114,7 @@ export function LeftSidebar() {
 
   const DRAW_TOOLS: ToolDef[] = DRAW_TOOL_ICONS.map(({ key, icon }) => ({
     key, icon,
-    label: t.tools[key as keyof typeof t.tools] as string,
+    label: (t.tools[key as keyof typeof t.tools] as string) || key,
     hint: t.tools[`${key}Hint` as keyof typeof t.tools] as string | undefined,
   }));
   const UTIL_TOOLS: ToolDef[] = UTIL_TOOL_ICONS.map(({ key, icon }) => ({

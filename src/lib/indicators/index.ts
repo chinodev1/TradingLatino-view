@@ -119,7 +119,7 @@ export function macd(
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /** Wilder's Smoothed Moving Average — alpha = 1/period */
-function rma(values: number[], period: number): number[] {
+export function rma(values: number[], period: number): number[] {
   const out: number[] = [];
   if (values.length < period) return out;
   let prev = 0;
@@ -303,5 +303,151 @@ export function squeezeMomentum(
     });
   }
 
+  return out;
+}
+
+// ─── Bollinger Bands ─────────────────────────────────────────────────────────
+
+export interface BBPoint {
+  time: number;
+  upper: number;
+  mid: number;
+  lower: number;
+}
+
+export function bollingerBands(candles: Candle[], period = 20, mult = 2.0): BBPoint[] {
+  const out: BBPoint[] = [];
+  if (candles.length < period) return out;
+  for (let i = period - 1; i < candles.length; i++) {
+    const slice = candles.slice(i - period + 1, i + 1).map((c) => c.close);
+    const mean = slice.reduce((a, b) => a + b, 0) / period;
+    const std = Math.sqrt(slice.reduce((a, b) => a + (b - mean) ** 2, 0) / period);
+    out.push({ time: candles[i].time, upper: mean + mult * std, mid: mean, lower: mean - mult * std });
+  }
+  return out;
+}
+
+// ─── VWAP ─────────────────────────────────────────────────────────────────────
+
+export function vwap(candles: Candle[]): IndicatorPoint[] {
+  const out: IndicatorPoint[] = [];
+  let cumPV = 0, cumV = 0;
+  let lastDate = "";
+  for (const c of candles) {
+    const d = new Date(c.time * 1000);
+    const dateStr = `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
+    if (dateStr !== lastDate) { cumPV = 0; cumV = 0; lastDate = dateStr; }
+    const tp = (c.high + c.low + c.close) / 3;
+    cumPV += tp * c.volume;
+    cumV += c.volume;
+    out.push({ time: c.time, value: cumV === 0 ? 0 : cumPV / cumV });
+  }
+  return out;
+}
+
+// ─── Stochastic RSI ──────────────────────────────────────────────────────────
+
+export interface StochRSIPoint {
+  time: number;
+  k: number;
+  d: number;
+}
+
+export function stochRsi(candles: Candle[], rsiLen = 14, stochPeriod = 14, smoothK = 3, smoothD = 3): StochRSIPoint[] {
+  const rsiData = rsi(candles, rsiLen);
+  if (rsiData.length < stochPeriod) return [];
+  const rawK: { time: number; value: number }[] = [];
+  for (let i = stochPeriod - 1; i < rsiData.length; i++) {
+    const slice = rsiData.slice(i - stochPeriod + 1, i + 1).map((p) => p.value);
+    const lo = Math.min(...slice), hi = Math.max(...slice);
+    rawK.push({ time: rsiData[i].time, value: hi === lo ? 0 : ((rsiData[i].value - lo) / (hi - lo)) * 100 });
+  }
+  // smoothK: SMA of rawK
+  const smK: { time: number; value: number }[] = [];
+  for (let i = smoothK - 1; i < rawK.length; i++) {
+    const mean = rawK.slice(i - smoothK + 1, i + 1).reduce((a, b) => a + b.value, 0) / smoothK;
+    smK.push({ time: rawK[i].time, value: mean });
+  }
+  // smoothD: SMA of smK
+  const out: StochRSIPoint[] = [];
+  for (let i = smoothD - 1; i < smK.length; i++) {
+    const dVal = smK.slice(i - smoothD + 1, i + 1).reduce((a, b) => a + b.value, 0) / smoothD;
+    out.push({ time: smK[i].time, k: smK[i].value, d: dVal });
+  }
+  return out;
+}
+
+// ─── Williams %R ─────────────────────────────────────────────────────────────
+
+export function williamsR(candles: Candle[], period = 14): IndicatorPoint[] {
+  const out: IndicatorPoint[] = [];
+  for (let i = period - 1; i < candles.length; i++) {
+    const slice = candles.slice(i - period + 1, i + 1);
+    const hh = Math.max(...slice.map((c) => c.high));
+    const ll = Math.min(...slice.map((c) => c.low));
+    out.push({ time: candles[i].time, value: hh === ll ? 0 : ((hh - candles[i].close) / (hh - ll)) * -100 });
+  }
+  return out;
+}
+
+// ─── ATR ─────────────────────────────────────────────────────────────────────
+
+export function atr(candles: Candle[], period = 14): IndicatorPoint[] {
+  if (candles.length < 2) return [];
+  const trArr: number[] = [];
+  for (let i = 1; i < candles.length; i++) {
+    const c = candles[i], p = candles[i - 1];
+    trArr.push(Math.max(c.high - c.low, Math.abs(c.high - p.close), Math.abs(c.low - p.close)));
+  }
+  const smoothed = rma(trArr, period);
+  return smoothed.map((v, i) => ({ time: candles[i + period].time, value: v }));
+}
+
+// ─── CCI ─────────────────────────────────────────────────────────────────────
+
+export function cci(candles: Candle[], period = 20): IndicatorPoint[] {
+  const out: IndicatorPoint[] = [];
+  for (let i = period - 1; i < candles.length; i++) {
+    const slice = candles.slice(i - period + 1, i + 1);
+    const tp = slice.map((c) => (c.high + c.low + c.close) / 3);
+    const mean = tp.reduce((a, b) => a + b, 0) / period;
+    const md = tp.reduce((a, b) => a + Math.abs(b - mean), 0) / period;
+    out.push({ time: candles[i].time, value: md === 0 ? 0 : (tp[tp.length - 1] - mean) / (0.015 * md) });
+  }
+  return out;
+}
+
+// ─── OBV ─────────────────────────────────────────────────────────────────────
+
+export function obv(candles: Candle[]): IndicatorPoint[] {
+  const out: IndicatorPoint[] = [];
+  let cumObv = 0;
+  for (let i = 0; i < candles.length; i++) {
+    if (i > 0) {
+      if (candles[i].close > candles[i - 1].close) cumObv += candles[i].volume;
+      else if (candles[i].close < candles[i - 1].close) cumObv -= candles[i].volume;
+    }
+    out.push({ time: candles[i].time, value: cumObv });
+  }
+  return out;
+}
+
+// ─── MFI ─────────────────────────────────────────────────────────────────────
+
+export function mfi(candles: Candle[], period = 14): IndicatorPoint[] {
+  const out: IndicatorPoint[] = [];
+  for (let i = period; i < candles.length; i++) {
+    const slice = candles.slice(i - period, i + 1);
+    let posFlow = 0, negFlow = 0;
+    for (let j = 1; j < slice.length; j++) {
+      const tp = (slice[j].high + slice[j].low + slice[j].close) / 3;
+      const prevTp = (slice[j - 1].high + slice[j - 1].low + slice[j - 1].close) / 3;
+      const rawMF = tp * slice[j].volume;
+      if (tp > prevTp) posFlow += rawMF;
+      else if (tp < prevTp) negFlow += rawMF;
+    }
+    const mfr = negFlow === 0 ? 100 : posFlow / negFlow;
+    out.push({ time: candles[i].time, value: 100 - 100 / (1 + mfr) });
+  }
   return out;
 }

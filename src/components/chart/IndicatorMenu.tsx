@@ -30,6 +30,14 @@ const ENTRIES: Entry[] = [
   { key: "macd",    groupKey: "Osciladores",     label: (c) => `MACD (${c.macdFast}, ${c.macdSlow}, ${c.macdSignal})` },
   { key: "adx",     groupKey: "Osciladores",     label: (c) => `DMI/ADX/KeyLevel (DI ${c.adxDiLen}, ADX ${c.adxLen}, KL ${c.adxKeyLevel})` },
   { key: "sqzMom",  groupKey: "Osciladores",     label: (c) => `Squeeze Momentum BB ${c.sqzBbLen}/${c.sqzKcLen}` },
+  { key: "bb",         groupKey: "Osciladores",     label: (c) => `Bollinger Bands (${c.bbPeriod}, ${c.bbMult})` },
+  { key: "vwap",       groupKey: "Osciladores",     label: () => "VWAP" },
+  { key: "stochRsi",   groupKey: "Osciladores",     label: (c) => `Stochastic RSI (${c.stochRsiLen}, ${c.stochRsiPeriod})` },
+  { key: "williamsR",  groupKey: "Osciladores",     label: (c) => `Williams %R (${c.williamsRPeriod})` },
+  { key: "atr",        groupKey: "Osciladores",     label: (c) => `ATR (${c.atrPeriod})` },
+  { key: "cci",        groupKey: "Osciladores",     label: (c) => `CCI (${c.cciPeriod})` },
+  { key: "obv",        groupKey: "Osciladores",     label: () => "OBV" },
+  { key: "mfi",        groupKey: "Osciladores",     label: (c) => `MFI (${c.mfiPeriod})` },
 ];
 
 export function IndicatorMenu() {

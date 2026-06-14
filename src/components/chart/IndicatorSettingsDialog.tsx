@@ -27,6 +27,14 @@ const TITLES: Record<IndicatorKey, string> = {
   adx: "DMI / ADX / KeyLevel",
   sqzMom: "Squeeze Momentum (LazyBear)",
   vrvp: "Volume Profile (VRVP)",
+  bb: "Bollinger Bands",
+  vwap: "VWAP",
+  stochRsi: "Stochastic RSI",
+  williamsR: "Williams %R",
+  atr: "ATR",
+  cci: "CCI",
+  obv: "OBV",
+  mfi: "MFI",
 };
 
 export function IndicatorSettingsDialog() {
@@ -117,6 +125,19 @@ function SettingsForm({ target, config, onSave, onReset }: FormProps) {
         sqzStyle: draft.sqzStyle,
       });
     else if (target === "vrvp") onSave({});
+    else if (target === "bb") onSave({ bbPeriod: clamp(draft.bbPeriod, 2, 500), bbMult: clampF(draft.bbMult, 0.1, 10) });
+    else if (target === "vwap") onSave({});
+    else if (target === "stochRsi") onSave({
+      stochRsiLen: clamp(draft.stochRsiLen, 2, 100),
+      stochRsiPeriod: clamp(draft.stochRsiPeriod, 2, 100),
+      stochRsiSmoothK: clamp(draft.stochRsiSmoothK, 1, 20),
+      stochRsiSmoothD: clamp(draft.stochRsiSmoothD, 1, 20),
+    });
+    else if (target === "williamsR") onSave({ williamsRPeriod: clamp(draft.williamsRPeriod, 2, 100) });
+    else if (target === "atr") onSave({ atrPeriod: clamp(draft.atrPeriod, 2, 100) });
+    else if (target === "cci") onSave({ cciPeriod: clamp(draft.cciPeriod, 2, 100) });
+    else if (target === "obv") onSave({});
+    else if (target === "mfi") onSave({ mfiPeriod: clamp(draft.mfiPeriod, 2, 100) });
   }
 
   return (
@@ -237,6 +258,38 @@ function SettingsForm({ target, config, onSave, onReset }: FormProps) {
         <p className="text-xs text-tv-text-muted">
           {t.settings.vrvpNoParams}
         </p>
+      )}
+      {target === "bb" && (
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Period" value={draft.bbPeriod} onChange={(n) => setDraft((d) => ({ ...d, bbPeriod: n }))} />
+          <FieldFloat label="Multiplier" value={draft.bbMult} onChange={(n) => setDraft((d) => ({ ...d, bbMult: n }))} />
+        </div>
+      )}
+      {target === "vwap" && (
+        <p className="text-xs text-tv-text-muted">VWAP resets each trading day. No additional parameters.</p>
+      )}
+      {target === "stochRsi" && (
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="RSI Length" value={draft.stochRsiLen} onChange={(n) => setDraft((d) => ({ ...d, stochRsiLen: n }))} />
+          <Field label="Stoch Period" value={draft.stochRsiPeriod} onChange={(n) => setDraft((d) => ({ ...d, stochRsiPeriod: n }))} />
+          <Field label="Smooth K" value={draft.stochRsiSmoothK} onChange={(n) => setDraft((d) => ({ ...d, stochRsiSmoothK: n }))} />
+          <Field label="Smooth D" value={draft.stochRsiSmoothD} onChange={(n) => setDraft((d) => ({ ...d, stochRsiSmoothD: n }))} />
+        </div>
+      )}
+      {target === "williamsR" && (
+        <Field label="Period" value={draft.williamsRPeriod} onChange={(n) => setDraft((d) => ({ ...d, williamsRPeriod: n }))} />
+      )}
+      {target === "atr" && (
+        <Field label="Period" value={draft.atrPeriod} onChange={(n) => setDraft((d) => ({ ...d, atrPeriod: n }))} />
+      )}
+      {target === "cci" && (
+        <Field label="Period" value={draft.cciPeriod} onChange={(n) => setDraft((d) => ({ ...d, cciPeriod: n }))} />
+      )}
+      {target === "obv" && (
+        <p className="text-xs text-tv-text-muted">OBV has no configurable parameters.</p>
+      )}
+      {target === "mfi" && (
+        <Field label="Period" value={draft.mfiPeriod} onChange={(n) => setDraft((d) => ({ ...d, mfiPeriod: n }))} />
       )}
 
       <div className="mt-2 flex items-center justify-between">
