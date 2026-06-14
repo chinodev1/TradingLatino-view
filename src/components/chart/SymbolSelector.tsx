@@ -62,12 +62,12 @@ export function SymbolSelector() {
         <ChevronDown className="h-3.5 w-3.5 text-tv-text-muted shrink-0" />
       </DialogTrigger>
 
-      {/* Dialog: full width on mobile, fixed width on desktop. No position overrides. */}
       <DialogContent
         showCloseButton={false}
-        className="w-[calc(100vw-1rem)] max-w-md gap-0 bg-tv-panel p-0 flex flex-col max-h-[90dvh]"
+        className="w-[min(calc(100vw-1rem),28rem)] gap-0 bg-tv-panel p-0"
       >
-        <DialogHeader className="flex-row items-center justify-between border-b border-tv-border px-4 py-3 shrink-0">
+        {/* Header */}
+        <DialogHeader className="flex-row items-center justify-between border-b border-tv-border px-4 py-3">
           <DialogTitle className="text-sm font-medium">Buscar símbolo</DialogTitle>
           <button
             onClick={() => setOpen(false)}
@@ -77,7 +77,8 @@ export function SymbolSelector() {
           </button>
         </DialogHeader>
 
-        <div className="border-b border-tv-border p-3 space-y-2 shrink-0">
+        {/* Search + filters */}
+        <div className="border-b border-tv-border p-3 space-y-2">
           <Input
             ref={inputRef}
             placeholder="BTC, Bitcoin, Ethereum, Solana…"
@@ -101,8 +102,8 @@ export function SymbolSelector() {
           </div>
         </div>
 
-        {/* Scrollable results — fills remaining space up to max-h */}
-        <div className="overflow-y-auto flex-1">
+        {/* Results — fixed height scroll area, no layout tricks */}
+        <ScrollArea className="h-[55vh] sm:h-[420px]">
           {filtered.length === 0 && (
             <div className="p-6 text-center text-sm text-tv-text-muted">Sin resultados</div>
           )}
@@ -128,7 +129,7 @@ export function SymbolSelector() {
               </button>
             );
           })}
-        </div>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   );

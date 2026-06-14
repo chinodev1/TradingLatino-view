@@ -8,7 +8,7 @@ import {
 import { useChartStore, type DrawingTool } from "@/lib/store/chart-store";
 import { useTranslation } from "@/lib/useTranslation";
 import { cn } from "@/lib/utils";
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 
 function DashLineIcon({ className }: { className?: string }) {
   return (
@@ -46,33 +46,19 @@ export function MobileToolbar() {
   const t = useTranslation();
 
   const [open, setOpen] = useState(false);
-  const panelRef = useRef<HTMLDivElement>(null);
 
-  // Close on outside tap
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: TouchEvent | MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener("touchstart", handler);
-    document.addEventListener("mousedown", handler);
-    return () => {
-      document.removeEventListener("touchstart", handler);
-      document.removeEventListener("mousedown", handler);
-    };
-  }, [open]);
+  const ActiveIcon = TOOLS.find((t) => t.key === tool)?.Icon
+    ?? (({ className }: { className?: string }) => <PenLine className={className} />);
 
-  const ActiveIcon = TOOLS.find((t) => t.key === tool)?.Icon ?? (({ className }) => <PenLine className={className} />);
+  function close() { setOpen(false); }
 
   return (
     <>
-      {/* Floating action button — bottom-left, mobile only */}
+      {/* FAB — bottom-left, mobile only */}
       <button
-        onClick={() => setOpen((v) => !v)}
+        onPointerDown={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
         className={cn(
-          "md:hidden fixed bottom-6 left-4 z-40 flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition-all active:scale-95",
+          "md:hidden fixed left-4 z-40 flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition-all active:scale-95",
           open
             ? "bg-tv-blue text-white"
             : tool !== "cursor"
@@ -84,41 +70,45 @@ export function MobileToolbar() {
         <ActiveIcon className="h-5 w-5" />
       </button>
 
-      {/* Backdrop */}
+      {/* Backdrop — only in DOM when open, so it never blocks chart touches */}
       {open && (
-        <div className="md:hidden fixed inset-0 z-30 bg-black/40" onClick={() => setOpen(false)} />
+        <div
+          className="md:hidden fixed inset-0 z-30"
+          onPointerDown={close}
+        />
       )}
 
-      {/* Slide-in panel from left — mobile only */}
+      {/* Slide-in panel — pointer-events-none when closed so it NEVER blocks the chart */}
       <div
-        ref={panelRef}
         className={cn(
           "md:hidden fixed left-0 top-0 z-40 h-full w-56 bg-tv-panel border-r border-tv-border shadow-2xl transition-transform duration-200 flex flex-col",
-          open ? "translate-x-0" : "-translate-x-full"
+          open ? "translate-x-0 pointer-events-auto" : "-translate-x-full pointer-events-none"
         )}
         style={{ paddingTop: "env(safe-area-inset-top)" }}
       >
-        {/* Panel header */}
         <div className="flex items-center justify-between border-b border-tv-border px-4 py-3">
           <span className="text-sm font-semibold text-tv-text">Herramientas</span>
           <button
-            onClick={() => setOpen(false)}
-            className="rounded p-1 text-tv-text-muted hover:bg-tv-panel-hover hover:text-tv-text"
+            onPointerDown={(e) => { e.stopPropagation(); close(); }}
+            className="rounded p-1 text-tv-text-muted hover:bg-tv-panel-hover"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        {/* Tools list */}
         <div className="flex-1 overflow-y-auto py-2">
           {TOOLS.map(({ key, Icon, label }) => {
             const active = tool === key;
             return (
               <button
                 key={key}
-                onClick={() => { setTool(key); setOpen(false); }}
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                  setTool(key);
+                  close();
+                }}
                 className={cn(
-                  "flex w-full items-center gap-4 px-5 py-3.5 transition-colors active:bg-tv-panel-hover",
+                  "flex w-full items-center gap-4 px-5 py-3.5 transition-colors",
                   active
                     ? "bg-tv-blue/10 text-tv-blue border-r-2 border-tv-blue"
                     : "text-tv-text-muted hover:bg-tv-panel-hover hover:text-tv-text"
@@ -131,11 +121,15 @@ export function MobileToolbar() {
             );
           })}
 
-          {/* Divider + Clear all */}
           <div className="my-2 mx-4 h-px bg-tv-border" />
+
           <button
-            onClick={() => { clearDrawings(symbol); setOpen(false); }}
-            className="flex w-full items-center gap-4 px-5 py-3.5 text-tv-text-muted hover:bg-tv-panel-hover hover:text-tv-red transition-colors active:bg-tv-panel-hover"
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              clearDrawings(symbol);
+              close();
+            }}
+            className="flex w-full items-center gap-4 px-5 py-3.5 text-tv-text-muted hover:bg-tv-panel-hover hover:text-tv-red transition-colors"
           >
             <Trash2 className="h-5 w-5 shrink-0" />
             <span className="text-sm font-medium">{t.tools.clearDrawings}</span>
