@@ -4,6 +4,7 @@ import { Header } from "@/components/layout/Header";
 import { LeftSidebar } from "@/components/layout/LeftSidebar";
 import { RightSidebar } from "@/components/layout/RightSidebar";
 import { BottomPanel } from "@/components/layout/BottomPanel";
+import { MobileToolbar } from "@/components/layout/MobileToolbar";
 import { PriceChart } from "@/components/chart/PriceChart";
 import { IndicatorSettingsDialog } from "@/components/chart/IndicatorSettingsDialog";
 import { useChartStore } from "@/lib/store/chart-store";
@@ -24,6 +25,7 @@ export default function HomePage() {
         </main>
         <RightSidebar />
       </div>
+      <MobileToolbar />
       <BottomPanel />
       <IndicatorSettingsDialog />
     </div>
