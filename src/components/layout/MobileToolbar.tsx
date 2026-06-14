@@ -3,12 +3,12 @@
 import {
   Minus, Ruler, Trash2, TrendingUp, AlignCenter,
   Square, ArrowUpRight, Paintbrush, Type, Eraser,
-  MousePointer2, Percent, ChevronUp, ChevronDown as ChevronDownIcon,
+  MousePointer2, Percent, X, PenLine,
 } from "lucide-react";
 import { useChartStore, type DrawingTool } from "@/lib/store/chart-store";
 import { useTranslation } from "@/lib/useTranslation";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
 function DashLineIcon({ className }: { className?: string }) {
   return (
@@ -23,19 +23,19 @@ function DashLineIcon({ className }: { className?: string }) {
   );
 }
 
-const TOOLS: { key: DrawingTool; Icon: React.FC<{ className?: string }> }[] = [
-  { key: "cursor",    Icon: ({ className }) => <MousePointer2 className={className} /> },
-  { key: "hline",     Icon: ({ className }) => <Minus className={className} /> },
-  { key: "vline",     Icon: ({ className }) => <AlignCenter className={className} /> },
-  { key: "trendline", Icon: ({ className }) => <TrendingUp className={className} /> },
-  { key: "dashline",  Icon: DashLineIcon },
-  { key: "fibonacci", Icon: ({ className }) => <Percent className={className} /> },
-  { key: "rectangle", Icon: ({ className }) => <Square className={className} /> },
-  { key: "arrow",     Icon: ({ className }) => <ArrowUpRight className={className} /> },
-  { key: "brush",     Icon: ({ className }) => <Paintbrush className={className} /> },
-  { key: "text",      Icon: ({ className }) => <Type className={className} /> },
-  { key: "eraser",    Icon: ({ className }) => <Eraser className={className} /> },
-  { key: "measure",   Icon: ({ className }) => <Ruler className={className} /> },
+const TOOLS: { key: DrawingTool; Icon: React.FC<{ className?: string }>; label: string }[] = [
+  { key: "cursor",    Icon: ({ className }) => <MousePointer2 className={className} />, label: "Cursor" },
+  { key: "hline",     Icon: ({ className }) => <Minus className={className} />,         label: "H. Línea" },
+  { key: "vline",     Icon: ({ className }) => <AlignCenter className={className} />,   label: "V. Línea" },
+  { key: "trendline", Icon: ({ className }) => <TrendingUp className={className} />,    label: "Tendencia" },
+  { key: "dashline",  Icon: DashLineIcon,                                               label: "Línea rota" },
+  { key: "fibonacci", Icon: ({ className }) => <Percent className={className} />,       label: "Fibonacci" },
+  { key: "rectangle", Icon: ({ className }) => <Square className={className} />,        label: "Rectángulo" },
+  { key: "arrow",     Icon: ({ className }) => <ArrowUpRight className={className} />,  label: "Flecha" },
+  { key: "brush",     Icon: ({ className }) => <Paintbrush className={className} />,    label: "Pincel" },
+  { key: "text",      Icon: ({ className }) => <Type className={className} />,          label: "Texto" },
+  { key: "eraser",    Icon: ({ className }) => <Eraser className={className} />,        label: "Borrar" },
+  { key: "measure",   Icon: ({ className }) => <Ruler className={className} />,         label: "% Regla" },
 ];
 
 export function MobileToolbar() {
@@ -45,58 +45,103 @@ export function MobileToolbar() {
   const symbol = useChartStore((s) => s.symbol);
   const t = useTranslation();
 
-  const [expanded, setExpanded] = useState(false);
+  const [open, setOpen] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
 
-  const toolLabels: Record<DrawingTool, string> = {
-    cursor: "Cursor", hline: "H. Line", vline: "V. Line",
-    trendline: "Tendencia", dashline: "Línea rota",
-    fibonacci: "Fibonacci", rectangle: "Rectángulo",
-    arrow: "Flecha", brush: "Pincel", text: "Texto",
-    eraser: "Borrar", measure: t.tools.measure,
-  };
+  // Close on outside tap
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: TouchEvent | MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("touchstart", handler);
+    document.addEventListener("mousedown", handler);
+    return () => {
+      document.removeEventListener("touchstart", handler);
+      document.removeEventListener("mousedown", handler);
+    };
+  }, [open]);
+
+  const ActiveIcon = TOOLS.find((t) => t.key === tool)?.Icon ?? (({ className }) => <PenLine className={className} />);
 
   return (
-    <div className="md:hidden border-t border-tv-border bg-tv-panel">
-      {/* Toggle strip */}
+    <>
+      {/* Floating action button — bottom-left, mobile only */}
       <button
-        onClick={() => setExpanded((v) => !v)}
-        className="flex w-full items-center justify-between px-4 py-1.5 text-[11px] text-tv-text-muted active:bg-tv-panel-hover"
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          "md:hidden fixed bottom-6 left-4 z-40 flex h-12 w-12 items-center justify-center rounded-full shadow-lg transition-all active:scale-95",
+          open
+            ? "bg-tv-blue text-white"
+            : tool !== "cursor"
+              ? "bg-tv-blue/20 text-tv-blue border border-tv-blue/40"
+              : "bg-tv-panel border border-tv-border text-tv-text-muted"
+        )}
+        style={{ bottom: "calc(1.5rem + env(safe-area-inset-bottom))" }}
       >
-        <span className="font-medium">Herramientas · {toolLabels[tool] ?? tool}</span>
-        {expanded ? <ChevronDownIcon className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
+        <ActiveIcon className="h-5 w-5" />
       </button>
 
-      {/* Tool grid — shown when expanded */}
-      {expanded && (
-        <div className="border-t border-tv-border px-3 pb-2 pt-2">
-          <div className="grid grid-cols-6 gap-1.5">
-            {TOOLS.map(({ key, Icon }) => (
+      {/* Backdrop */}
+      {open && (
+        <div className="md:hidden fixed inset-0 z-30 bg-black/40" onClick={() => setOpen(false)} />
+      )}
+
+      {/* Slide-in panel from left — mobile only */}
+      <div
+        ref={panelRef}
+        className={cn(
+          "md:hidden fixed left-0 top-0 z-40 h-full w-56 bg-tv-panel border-r border-tv-border shadow-2xl transition-transform duration-200 flex flex-col",
+          open ? "translate-x-0" : "-translate-x-full"
+        )}
+        style={{ paddingTop: "env(safe-area-inset-top)" }}
+      >
+        {/* Panel header */}
+        <div className="flex items-center justify-between border-b border-tv-border px-4 py-3">
+          <span className="text-sm font-semibold text-tv-text">Herramientas</span>
+          <button
+            onClick={() => setOpen(false)}
+            className="rounded p-1 text-tv-text-muted hover:bg-tv-panel-hover hover:text-tv-text"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Tools list */}
+        <div className="flex-1 overflow-y-auto py-2">
+          {TOOLS.map(({ key, Icon, label }) => {
+            const active = tool === key;
+            return (
               <button
                 key={key}
-                onClick={() => { setTool(key); }}
+                onClick={() => { setTool(key); setOpen(false); }}
                 className={cn(
-                  "flex flex-col items-center gap-1 rounded-lg py-2 transition-colors active:scale-95",
-                  tool === key
-                    ? "bg-tv-blue/20 text-tv-blue"
+                  "flex w-full items-center gap-4 px-5 py-3.5 transition-colors active:bg-tv-panel-hover",
+                  active
+                    ? "bg-tv-blue/10 text-tv-blue border-r-2 border-tv-blue"
                     : "text-tv-text-muted hover:bg-tv-panel-hover hover:text-tv-text"
                 )}
               >
-                <Icon className="h-5 w-5" />
-                <span className="text-[9px] leading-none">{toolLabels[key]}</span>
+                <Icon className="h-5 w-5 shrink-0" />
+                <span className="text-sm font-medium">{label}</span>
+                {active && <span className="ml-auto text-tv-blue text-xs">✓</span>}
               </button>
-            ))}
+            );
+          })}
 
-            {/* Clear all */}
-            <button
-              onClick={() => { clearDrawings(symbol); }}
-              className="flex flex-col items-center gap-1 rounded-lg py-2 text-tv-text-muted active:scale-95 hover:bg-tv-panel-hover hover:text-tv-red"
-            >
-              <Trash2 className="h-5 w-5" />
-              <span className="text-[9px] leading-none">Borrar todo</span>
-            </button>
-          </div>
+          {/* Divider + Clear all */}
+          <div className="my-2 mx-4 h-px bg-tv-border" />
+          <button
+            onClick={() => { clearDrawings(symbol); setOpen(false); }}
+            className="flex w-full items-center gap-4 px-5 py-3.5 text-tv-text-muted hover:bg-tv-panel-hover hover:text-tv-red transition-colors active:bg-tv-panel-hover"
+          >
+            <Trash2 className="h-5 w-5 shrink-0" />
+            <span className="text-sm font-medium">{t.tools.clearDrawings}</span>
+          </button>
         </div>
-      )}
-    </div>
+      </div>
+    </>
   );
 }
