@@ -2959,9 +2959,7 @@ export function PriceChart({ symbol, timeframe }: Props) {
                 {lastPrice.pct >= 0 ? "+" : ""}{lastPrice.pct.toFixed(2)}%
               </span>
             </>
-          ) : (
-            <span className="text-xs text-tv-text-muted">{t.chart.loading}</span>
-          )}
+          ) : null}
         </div>
 
         {/* Candle close countdown */}
