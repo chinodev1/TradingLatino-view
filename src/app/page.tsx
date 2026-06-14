@@ -5,6 +5,7 @@ import { LeftSidebar } from "@/components/layout/LeftSidebar";
 import { RightSidebar } from "@/components/layout/RightSidebar";
 import { BottomPanel } from "@/components/layout/BottomPanel";
 import { PriceChart } from "@/components/chart/PriceChart";
+import { MobileToolbar } from "@/components/layout/MobileToolbar";
 import { IndicatorSettingsDialog } from "@/components/chart/IndicatorSettingsDialog";
 import { useChartStore } from "@/lib/store/chart-store";
 
@@ -24,7 +25,8 @@ export default function HomePage() {
         </main>
         <RightSidebar />
       </div>
-<BottomPanel />
+      <MobileToolbar />
+      <BottomPanel />
       <IndicatorSettingsDialog />
     </div>
   );
