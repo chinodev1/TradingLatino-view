@@ -683,6 +683,20 @@ export function PriceChart({ symbol, timeframe }: Props) {
       }
     });
 
+    // ── Mobile drawing: use LWC's subscribeClick for tap-based placement ──
+    // LWC internally distinguishes taps from pan-drags on touch devices,
+    // so this fires only when the user actually taps (not when they pan).
+    // Desktop drawing uses the mousedown/mouseup window listeners instead.
+    const onChartClick = (param: Parameters<Parameters<typeof chart.subscribeClick>[0]>[0]) => {
+      if (!param.point) return;
+      const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+      if (!isTouchDevice) return;
+      const t = toolRef.current;
+      if (t === "cursor" || t === "brush") return;
+      mobileTapRef.current?.(param.point.x, param.point.y);
+    };
+    chart.subscribeClick(onChartClick);
+
     const tsRangeHandler = () => setRenderTick((t) => t + 1);
     chart.timeScale().subscribeVisibleTimeRangeChange(tsRangeHandler);
     const logicalRangeHandler = () => setRenderTick((t) => t + 1);
@@ -695,6 +709,7 @@ export function PriceChart({ symbol, timeframe }: Props) {
     recomputePaneOffsets();
 
     return () => {
+      chart.unsubscribeClick(onChartClick);
       chart.timeScale().unsubscribeVisibleTimeRangeChange(tsRangeHandler);
       chart.timeScale().unsubscribeVisibleLogicalRangeChange(logicalRangeHandler);
       ro.disconnect();
@@ -1693,8 +1708,8 @@ export function PriceChart({ symbol, timeframe }: Props) {
   useEffect(() => {
     if (!chartRef.current) return;
     const isTool = tool !== "cursor";
-    // On touch devices, always keep touch drag enabled.
-    // Mobile drawing is handled by the tap overlay in JSX (mobileTapRef), not by disabling LWC panning.
+    // On touch devices, always keep touch drag enabled so panning works.
+    // Mobile drawing placement is handled via chart.subscribeClick() (fires only on taps, not drags).
     const isTouchDevice = typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
     chartRef.current.applyOptions({
       handleScroll: {
@@ -2830,21 +2845,6 @@ export function PriceChart({ symbol, timeframe }: Props) {
       {drawingsRender}
       {textLabelsHtmlRender}
       {measureRender}
-
-      {/* Mobile drawing tap overlay — sits above LWC canvas, captures taps for drawing tools.
-          Pointer events only active on touch devices when a drawing tool is selected. */}
-      {tool !== "cursor" && (
-        <div
-          className="md:hidden absolute inset-0"
-          style={{ zIndex: 15 }}
-          onPointerDown={(e) => {
-            if (e.pointerType !== "touch") return;
-            e.preventDefault();
-            const bounds = e.currentTarget.getBoundingClientRect();
-            mobileTapRef.current?.(e.clientX - bounds.left, e.clientY - bounds.top);
-          }}
-        />
-      )}
 
       {/* Error overlay */}
       {loadState === "error" && (
