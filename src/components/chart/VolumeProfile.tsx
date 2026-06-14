@@ -135,8 +135,10 @@ export function VolumeProfile({
 
   if (!visible || hidden || !bars.length) return null;
 
-  // Right edge = container width minus price-axis width (85px for wide prices like $130,000)
-  const priceAxisWidth = 85;
+  // Right edge = container width minus the actual LWC right price-axis width
+  const priceAxisWidth = containerWidth > 0 && chartRef.current
+    ? (chartRef.current.priceScale("right").width() || 65)
+    : 65;
   const rightEdge = containerWidth - priceAxisWidth;
   const pocBar = bars.find((b) => b.isPoc);
 

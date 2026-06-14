@@ -152,6 +152,7 @@ interface PaneOffset {
 
 export function PriceChart({ symbol, timeframe }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const mobileTapRef = useRef<((relX: number, relY: number) => void) | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
@@ -1440,47 +1441,11 @@ export function PriceChart({ symbol, timeframe }: Props) {
       if (brushTickRef.current % 2 === 0) setBrushDraftPoints([...currentBrushRef.current]);
     };
 
-    // ── mouseup: finalize brush OR detect a "click" for all other tools ──
-    // Using mouseup instead of the native click event because LWC calls
-    // preventDefault() on mousedown in the right-offset area, which would
-    // silently cancel the click event — mouseup always fires regardless.
-    const onUp = (e: MouseEvent) => {
-      if (e.button !== 0) return;
-
-      // ── End drag-to-move ────────────────────────────────────────────────
-      if (drawingDragRef.current) {
-        drawingDragRef.current = null;
-        return;
-      }
-
-      // ── Brush finalize ──────────────────────────────────────────────────
-      if (isBrushingRef.current) {
-        isBrushingRef.current = false;
-        const pts = currentBrushRef.current;
-        if (pts.length >= 2) {
-          addBrushStrokeRef.current(pts, symbolRef.current);
-          useChartStore.getState().setTool("cursor");
-        }
-        currentBrushRef.current = [];
-        setBrushDraftPoints([]);
-        return;
-      }
-
-      // ── Click detection for all drawing tools ───────────────────────────
-      // Reject if the mouse moved significantly (it was a pan, not a click)
-      const dx = Math.abs(e.clientX - downPos.x);
-      const dy = Math.abs(e.clientY - downPos.y);
-      if (dx > 5 || dy > 5) return;
-
-      const bounds = el.getBoundingClientRect();
-      if (e.clientX < bounds.left || e.clientX > bounds.right ||
-          e.clientY < bounds.top  || e.clientY > bounds.bottom) return;
-
+    // ── Shared placement logic: called from mouseup (desktop) and mobile tap overlay ──
+    const handleClickAt = (relX: number, relY: number) => {
       const t = toolRef.current;
       if (t === "cursor" || t === "brush") return;
 
-      const relX = e.clientX - bounds.left;
-      const relY = e.clientY - bounds.top;
       const series = candleSeriesRef.current;
       if (!series) return;
 
@@ -1680,38 +1645,47 @@ export function PriceChart({ symbol, timeframe }: Props) {
       }
     };
 
+    // Expose to mobile tap overlay (rendered in JSX above the chart canvas)
+    mobileTapRef.current = handleClickAt;
+
+    // ── mouseup: finalize brush/drag OR delegate click to handleClickAt ──
+    const onUp = (e: MouseEvent) => {
+      if (e.button !== 0) return;
+
+      if (drawingDragRef.current) {
+        drawingDragRef.current = null;
+        return;
+      }
+      if (isBrushingRef.current) {
+        isBrushingRef.current = false;
+        const pts = currentBrushRef.current;
+        if (pts.length >= 2) {
+          addBrushStrokeRef.current(pts, symbolRef.current);
+          useChartStore.getState().setTool("cursor");
+        }
+        currentBrushRef.current = [];
+        setBrushDraftPoints([]);
+        return;
+      }
+      // Reject pans (mouse moved > 5px between mousedown and mouseup)
+      const dx = Math.abs(e.clientX - downPos.x);
+      const dy = Math.abs(e.clientY - downPos.y);
+      if (dx > 5 || dy > 5) return;
+
+      const bounds = el.getBoundingClientRect();
+      if (e.clientX < bounds.left || e.clientX > bounds.right ||
+          e.clientY < bounds.top  || e.clientY > bounds.bottom) return;
+
+      handleClickAt(e.clientX - bounds.left, e.clientY - bounds.top);
+    };
+
     window.addEventListener("mousedown", onDown, { capture: true });
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup",   onUp,   { capture: true });
-
-    // ── Mobile: convert tap → mousedown+mouseup so drawing tools work ──
-    // When a drawing tool is active, a finger tap on the chart fires synthetic
-    // mouse events. Pans are rejected naturally because dx/dy > 5px in onUp.
-    const onTouchDraw = (e: TouchEvent) => {
-      if (toolRef.current === "cursor") return;
-      const touch = e.touches[0];
-      window.dispatchEvent(new MouseEvent("mousedown", {
-        clientX: touch.clientX, clientY: touch.clientY,
-        button: 0, bubbles: true, cancelable: true,
-      }));
-    };
-    const onTouchEndDraw = (e: TouchEvent) => {
-      if (toolRef.current === "cursor") return;
-      const touch = e.changedTouches[0];
-      window.dispatchEvent(new MouseEvent("mouseup", {
-        clientX: touch.clientX, clientY: touch.clientY,
-        button: 0, bubbles: true, cancelable: true,
-      }));
-    };
-    window.addEventListener("touchstart", onTouchDraw, { capture: true, passive: true });
-    window.addEventListener("touchend",   onTouchEndDraw, { capture: true, passive: true });
-
     return () => {
       window.removeEventListener("mousedown", onDown, { capture: true });
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup",   onUp,   { capture: true });
-      window.removeEventListener("touchstart", onTouchDraw, { capture: true });
-      window.removeEventListener("touchend",   onTouchEndDraw, { capture: true });
     };
   }, []);
 
@@ -1719,8 +1693,8 @@ export function PriceChart({ symbol, timeframe }: Props) {
   useEffect(() => {
     if (!chartRef.current) return;
     const isTool = tool !== "cursor";
-    // On touch devices, always keep touch drag enabled — disabling it freezes mobile.
-    // Drawing tools on mobile work via tap-to-place (touchstart→synthetic mousedown).
+    // On touch devices, always keep touch drag enabled.
+    // Mobile drawing is handled by the tap overlay in JSX (mobileTapRef), not by disabling LWC panning.
     const isTouchDevice = typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
     chartRef.current.applyOptions({
       handleScroll: {
@@ -2856,6 +2830,21 @@ export function PriceChart({ symbol, timeframe }: Props) {
       {drawingsRender}
       {textLabelsHtmlRender}
       {measureRender}
+
+      {/* Mobile drawing tap overlay — sits above LWC canvas, captures taps for drawing tools.
+          Pointer events only active on touch devices when a drawing tool is selected. */}
+      {tool !== "cursor" && (
+        <div
+          className="md:hidden absolute inset-0"
+          style={{ zIndex: 15 }}
+          onPointerDown={(e) => {
+            if (e.pointerType !== "touch") return;
+            e.preventDefault();
+            const bounds = e.currentTarget.getBoundingClientRect();
+            mobileTapRef.current?.(e.clientX - bounds.left, e.clientY - bounds.top);
+          }}
+        />
+      )}
 
       {/* Error overlay */}
       {loadState === "error" && (
