@@ -152,7 +152,6 @@ interface PaneOffset {
 
 export function PriceChart({ symbol, timeframe }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mobileTapRef = useRef<((relX: number, relY: number) => void) | null>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
@@ -683,17 +682,6 @@ export function PriceChart({ symbol, timeframe }: Props) {
       }
     });
 
-    // Mobile drawing: LWC fires subscribeClick only for taps (not drags),
-    // so this coexists with panning without freezing the chart.
-    const onChartClick = (param: Parameters<Parameters<typeof chart.subscribeClick>[0]>[0]) => {
-      if (!param.point) return;
-      if (!("ontouchstart" in window || navigator.maxTouchPoints > 0)) return;
-      const t = toolRef.current;
-      if (t === "cursor" || t === "brush") return;
-      mobileTapRef.current?.(param.point.x, param.point.y);
-    };
-    chart.subscribeClick(onChartClick);
-
     const tsRangeHandler = () => setRenderTick((t) => t + 1);
     chart.timeScale().subscribeVisibleTimeRangeChange(tsRangeHandler);
     const logicalRangeHandler = () => setRenderTick((t) => t + 1);
@@ -706,7 +694,6 @@ export function PriceChart({ symbol, timeframe }: Props) {
     recomputePaneOffsets();
 
     return () => {
-      chart.unsubscribeClick(onChartClick);
       chart.timeScale().unsubscribeVisibleTimeRangeChange(tsRangeHandler);
       chart.timeScale().unsubscribeVisibleLogicalRangeChange(logicalRangeHandler);
       ro.disconnect();
@@ -1657,8 +1644,6 @@ export function PriceChart({ symbol, timeframe }: Props) {
       }
     };
 
-    mobileTapRef.current = handleClickAt;
-
     // ── mouseup: finalize brush/drag OR delegate click to handleClickAt ──
     const onUp = (e: MouseEvent) => {
       if (e.button !== 0) return;
@@ -1704,16 +1689,8 @@ export function PriceChart({ symbol, timeframe }: Props) {
   useEffect(() => {
     if (!chartRef.current) return;
     const isTool = tool !== "cursor";
-    // On touch devices keep drag enabled — subscribeClick handles tap-to-draw,
-    // so panning and drawing can coexist without freezing the chart.
-    const isTouch = typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
     chartRef.current.applyOptions({
-      handleScroll: {
-        mouseWheel: true,
-        pressedMouseMove: !isTool,
-        horzTouchDrag: isTouch ? true : !isTool,
-        vertTouchDrag: isTouch ? true : !isTool,
-      },
+      handleScroll: { mouseWheel: true, pressedMouseMove: !isTool, horzTouchDrag: !isTool, vertTouchDrag: !isTool },
     });
   }, [tool]);
 
