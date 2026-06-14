@@ -1,49 +1,74 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { Search, ChevronDown } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Search, ChevronDown, TrendingUp, Bitcoin } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { fetchExchangeSymbols } from "@/lib/binance/rest";
+import { fetchExchangeSymbols, searchYahooFinance } from "@/lib/binance/rest";
 import { useChartStore } from "@/lib/store/chart-store";
-import { cn } from "@/lib/utils";
 import type { SymbolInfo } from "@/lib/binance/types";
+import type { UnifiedSymbolInfo } from "@/lib/binance/types";
+import { cn } from "@/lib/utils";
+
+type Tab = "crypto" | "stocks";
+type QuoteFilter = "ALL" | "USDT" | "BTC" | "ETH";
 
 export function SymbolSelector() {
   const symbol = useChartStore((s) => s.symbol);
   const setSymbol = useChartStore((s) => s.setSymbol);
+  const setDataSource = useChartStore((s) => s.setDataSource);
   const addToWatchlist = useChartStore((s) => s.addToWatchlist);
   const open = useChartStore((s) => s.symbolDialogOpen);
   const setOpen = useChartStore((s) => s.setSymbolDialogOpen);
 
+  const [tab, setTab] = useState<Tab>("crypto");
   const [query, setQuery] = useState("");
-  const [allSymbols, setAllSymbols] = useState<SymbolInfo[]>([]);
+  const [quoteFilter, setQuoteFilter] = useState<QuoteFilter>("USDT");
+  const [allCryptoSymbols, setAllCryptoSymbols] = useState<SymbolInfo[]>([]);
+  const [stockResults, setStockResults] = useState<UnifiedSymbolInfo[]>([]);
+  const [stockLoading, setStockLoading] = useState(false);
 
   useEffect(() => {
-    if (open && allSymbols.length === 0) {
-      fetchExchangeSymbols().then(setAllSymbols).catch(console.error);
+    if (open && allCryptoSymbols.length === 0) {
+      fetchExchangeSymbols().then(setAllCryptoSymbols).catch(console.error);
     }
-  }, [open, allSymbols.length]);
+    if (!open) { setQuery(""); setStockResults([]); }
+  }, [open, allCryptoSymbols.length]);
 
-  const filtered = useMemo(() => {
+  // Live Yahoo search
+  useEffect(() => {
+    if (tab !== "stocks" || !query.trim()) { setStockResults([]); return; }
+    const timer = setTimeout(async () => {
+      setStockLoading(true);
+      try {
+        const results = await searchYahooFinance(query);
+        setStockResults(results);
+      } catch {
+        setStockResults([]);
+      } finally {
+        setStockLoading(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [query, tab]);
+
+  const filteredCrypto = useMemo(() => {
+    const syms = quoteFilter === "ALL" ? allCryptoSymbols : allCryptoSymbols.filter((s) => s.quoteAsset === quoteFilter);
     const q = query.trim().toUpperCase();
-    if (!q) return allSymbols.slice(0, 100);
-    return allSymbols
-      .filter(
-        (s) =>
-          s.symbol.includes(q) ||
-          s.baseAsset.includes(q) ||
-          s.quoteAsset.includes(q),
-      )
-      .slice(0, 100);
-  }, [query, allSymbols]);
+    if (!q) return syms.slice(0, 100);
+    return syms.filter((s) => s.symbol.includes(q) || s.baseAsset.includes(q)).slice(0, 100);
+  }, [query, allCryptoSymbols, quoteFilter]);
+
+  function selectSymbol(sym: string, source: "binance" | "yahoo") {
+    setSymbol(sym);
+    setDataSource(source);
+    if (source === "binance") addToWatchlist(sym);
+    setOpen(false);
+    setQuery("");
+  }
+
+  const QUOTE_FILTERS: QuoteFilter[] = ["ALL", "USDT", "BTC", "ETH"];
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -56,41 +81,106 @@ export function SymbolSelector() {
         <DialogHeader className="border-b border-tv-border px-4 py-3">
           <DialogTitle className="text-sm font-medium">Buscar símbolo</DialogTitle>
         </DialogHeader>
-        <div className="border-b border-tv-border p-3">
+
+        {/* Tabs */}
+        <div className="flex border-b border-tv-border">
+          <button
+            onClick={() => { setTab("crypto"); setQuery(""); }}
+            className={cn("flex flex-1 items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors",
+              tab === "crypto" ? "border-b-2 border-tv-blue text-tv-blue" : "text-tv-text-muted hover:text-tv-text")}
+          >
+            <Bitcoin className="h-3.5 w-3.5" /> Crypto
+          </button>
+          <button
+            onClick={() => { setTab("stocks"); setQuery(""); setStockResults([]); }}
+            className={cn("flex flex-1 items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors",
+              tab === "stocks" ? "border-b-2 border-tv-blue text-tv-blue" : "text-tv-text-muted hover:text-tv-text")}
+          >
+            <TrendingUp className="h-3.5 w-3.5" /> Acciones
+          </button>
+        </div>
+
+        {/* Search input */}
+        <div className={cn("border-b border-tv-border p-3 space-y-2")}>
           <Input
             autoFocus
-            placeholder="BTC, ETH, SOL…"
+            placeholder={tab === "crypto" ? "BTC, ETH, SOL…" : "AAPL, TSLA, NVDA…"}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="bg-tv-bg"
           />
+          {/* Quote filter — only for crypto tab */}
+          {tab === "crypto" && (
+            <div className="flex gap-1">
+              {QUOTE_FILTERS.map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setQuoteFilter(f)}
+                  className={cn("rounded px-2 py-0.5 text-[10px] font-semibold transition-colors",
+                    quoteFilter === f ? "bg-tv-blue/20 text-tv-blue" : "text-tv-text-muted hover:bg-tv-panel-hover")}
+                >
+                  {f === "ALL" ? "Todos" : f}
+                </button>
+              ))}
+            </div>
+          )}
+          {tab === "stocks" && !query.trim() && (
+            <p className="text-[10px] text-tv-text-muted">Buscá acciones, ETFs e índices (ej: AAPL, SPY, QQQ)</p>
+          )}
         </div>
-        <ScrollArea className="h-[400px]">
+
+        <ScrollArea className="h-[360px]">
           <div className="flex flex-col">
-            {filtered.length === 0 && (
-              <div className="p-4 text-center text-xs text-tv-text-muted">
-                Sin resultados
-              </div>
+            {/* Crypto results */}
+            {tab === "crypto" && filteredCrypto.length === 0 && (
+              <div className="p-4 text-center text-xs text-tv-text-muted">Sin resultados</div>
             )}
-            {filtered.map((s) => (
+            {tab === "crypto" && filteredCrypto.map((s) => (
               <button
                 key={s.symbol}
-                onClick={() => {
-                  setSymbol(s.symbol);
-                  addToWatchlist(s.symbol);
-                  setOpen(false);
-                  setQuery("");
-                }}
-                className={cn(
-                  "flex items-center justify-between border-b border-tv-border px-4 py-2 text-left text-xs hover:bg-tv-panel-hover",
-                  s.symbol === symbol && "bg-tv-panel-hover",
-                )}
+                onClick={() => selectSymbol(s.symbol, "binance")}
+                className={cn("flex items-center justify-between border-b border-tv-border px-4 py-2 text-left text-xs hover:bg-tv-panel-hover",
+                  s.symbol === symbol && "bg-tv-panel-hover")}
               >
                 <div className="flex items-center gap-3">
                   <span className="font-semibold text-tv-text">{s.baseAsset}</span>
                   <span className="text-tv-text-muted">/ {s.quoteAsset}</span>
                 </div>
-                <span className="text-tv-text-muted">{s.symbol}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-tv-text-dim">Binance</span>
+                  <span className="text-tv-text-muted">{s.symbol}</span>
+                </div>
+              </button>
+            ))}
+
+            {/* Stocks results */}
+            {tab === "stocks" && !query.trim() && (
+              <div className="p-4 text-center text-xs text-tv-text-muted">
+                Escribí el nombre o ticker de una acción para buscar
+              </div>
+            )}
+            {tab === "stocks" && stockLoading && (
+              <div className="p-4 text-center text-xs text-tv-text-muted">Buscando…</div>
+            )}
+            {tab === "stocks" && !stockLoading && query.trim() && stockResults.length === 0 && (
+              <div className="p-4 text-center text-xs text-tv-text-muted">
+                Sin resultados — probá con otro nombre o ticker
+              </div>
+            )}
+            {tab === "stocks" && stockResults.map((s) => (
+              <button
+                key={s.symbol}
+                onClick={() => selectSymbol(s.symbol, "yahoo")}
+                className={cn("flex items-center justify-between border-b border-tv-border px-4 py-2 text-left text-xs hover:bg-tv-panel-hover",
+                  s.symbol === symbol && "bg-tv-panel-hover")}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="font-semibold text-tv-text">{s.symbol}</span>
+                  {s.name && <span className="text-tv-text-muted truncate max-w-[160px]">{s.name}</span>}
+                </div>
+                <span className="text-[10px] shrink-0 rounded bg-tv-panel-hover px-1.5 py-0.5 text-tv-text-muted">
+                  {s.exchange || "Stock"}
+                </span>
               </button>
             ))}
           </div>

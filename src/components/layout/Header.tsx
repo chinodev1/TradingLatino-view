@@ -1,9 +1,10 @@
 "use client";
 
-import { CandlestickChart, AreaChart, BarChart2, LineChart, Undo2, Zap, ChevronDown, ZoomOut, Camera } from "lucide-react";
+import { CandlestickChart, AreaChart, BarChart2, LineChart, Undo2, Zap, ChevronDown, ZoomOut, Camera, Bell } from "lucide-react";
 import { SymbolSelector } from "@/components/chart/SymbolSelector";
 import { TimeframeSelector } from "@/components/chart/TimeframeSelector";
 import { IndicatorMenu } from "@/components/chart/IndicatorMenu";
+import { PriceAlertsPanel } from "@/components/chart/PriceAlertsPanel";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -35,7 +36,12 @@ export function Header() {
   const setLogScale = useChartStore((s) => s.setLogScale);
   const triggerResetView = useChartStore((s) => s.triggerResetView);
   const triggerScreenshot = useChartStore((s) => s.triggerScreenshot);
+  const alerts = useChartStore((s) => s.alerts);
+  const setAlertsOpen = useChartStore((s) => s.setAlertsOpen);
+  const symbol = useChartStore((s) => s.symbol);
   const t = useTranslation();
+
+  const activeAlertCount = alerts.filter((a) => a.symbol === symbol && !a.triggered).length;
 
   const CHART_TYPES = CHART_TYPE_KEYS.map(({ key, Icon }) => ({
     key, Icon, label: key === "heikinashi" ? "Heikin Ashi" : t.chartTypes[key as keyof typeof t.chartTypes],
@@ -136,6 +142,23 @@ export function Header() {
           <TooltipContent side="bottom" className="text-xs">Screenshot</TooltipContent>
         </Tooltip>
 
+        <div className="relative hidden sm:flex">
+          <Tooltip>
+            <TooltipTrigger
+              onClick={() => setAlertsOpen(true)}
+              className="h-7 w-7 items-center justify-center rounded text-tv-text-muted transition-colors hover:bg-tv-panel-hover hover:text-tv-text flex"
+            >
+              <Bell className="h-3.5 w-3.5" />
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="text-xs">Alertas de precio</TooltipContent>
+          </Tooltip>
+          {activeAlertCount > 0 && (
+            <span className="pointer-events-none absolute -right-1 -top-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-tv-red text-[9px] font-bold text-white">
+              {activeAlertCount}
+            </span>
+          )}
+        </div>
+
         <Tooltip>
           <TooltipTrigger
             onClick={() => setLogScale(!logScale)}
@@ -159,6 +182,7 @@ export function Header() {
           <TooltipContent side="bottom" className="text-xs">{t.langLabel}</TooltipContent>
         </Tooltip>
       </div>
+      <PriceAlertsPanel />
     </header>
   );
 }

@@ -42,3 +42,14 @@ export interface SymbolInfo {
   quoteAsset: string;
   status: string;
 }
+
+export type SymbolSource = "binance" | "yahoo";
+
+export interface UnifiedSymbolInfo {
+  symbol: string;
+  baseAsset: string;
+  quoteAsset: string;
+  name?: string;
+  source: SymbolSource;
+  exchange?: string;
+}

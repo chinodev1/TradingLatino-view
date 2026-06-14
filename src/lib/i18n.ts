@@ -17,6 +17,7 @@ export const translations = {
       "Medias móviles": "Medias móviles",
       "Volumen": "Volumen",
       "Osciladores": "Osciladores",
+      "Overlays": "Overlays",
     },
     indicatorLabels: {
       volume: "Volumen",
@@ -152,6 +153,7 @@ export const translations = {
       "Medias móviles": "Moving averages",
       "Volumen": "Volume",
       "Osciladores": "Oscillators",
+      "Overlays": "Overlays",
     },
     indicatorLabels: {
       volume: "Volume",

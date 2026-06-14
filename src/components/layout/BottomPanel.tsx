@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 
 export function BottomPanel() {
   const symbol = useChartStore((s) => s.symbol);
+  const dataSource = useChartStore((s) => s.dataSource);
   const tr = useTranslation();
   const [ticker, setTicker] = useState<Ticker24h | null>(null);
 
@@ -64,8 +65,17 @@ export function BottomPanel() {
         className="hidden sm:flex"
       />
       <div className="ml-auto flex items-center gap-2 text-[10px] text-tv-text-dim">
-        <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-tv-green" />
-        <span>Binance · Live</span>
+        {dataSource === "binance" ? (
+          <>
+            <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-tv-green" />
+            <span>Binance · Live</span>
+          </>
+        ) : (
+          <>
+            <span className="inline-flex h-1.5 w-1.5 rounded-full bg-tv-yellow" />
+            <span>Yahoo Finance · Diferido</span>
+          </>
+        )}
       </div>
     </div>
   );

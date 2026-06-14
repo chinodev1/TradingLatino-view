@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Timeframe } from "@/lib/binance/types";
+import type { Timeframe, SymbolSource } from "@/lib/binance/types";
 import type { Lang } from "@/lib/i18n";
 
 export type IndicatorKey =
@@ -91,6 +91,16 @@ export interface FiboZone {
   symbol: string;
   a: { time: number; price: number };
   b: { time: number; price: number };
+}
+
+export interface PriceAlert {
+  id: string;
+  symbol: string;
+  price: number;
+  direction: "above" | "below";
+  label: string;
+  triggered: boolean;
+  createdAt: number;
 }
 
 function genId() {
@@ -277,6 +287,9 @@ interface ChartState {
   triggerResetView: (() => void) | null;
   triggerScreenshot: (() => void) | null;
   favoriteIndicators: IndicatorKey[];
+  alerts: PriceAlert[];
+  alertsOpen: boolean;
+  dataSource: SymbolSource;
 
   // Actions
   setSymbol: (s: string) => void;
@@ -326,6 +339,11 @@ interface ChartState {
   setTriggerResetView: (fn: (() => void) | null) => void;
   setTriggerScreenshot: (fn: (() => void) | null) => void;
   toggleFavoriteIndicator: (key: IndicatorKey) => void;
+  addAlert: (symbol: string, price: number, direction: "above" | "below", label?: string) => void;
+  removeAlert: (id: string) => void;
+  setAlertTriggered: (id: string) => void;
+  setAlertsOpen: (v: boolean) => void;
+  setDataSource: (s: SymbolSource) => void;
 }
 
 function snap(s: ChartState): DrawingSnapshot {
@@ -410,6 +428,9 @@ export const useChartStore = create<ChartState>()(
       triggerResetView: null,
       triggerScreenshot: null,
       favoriteIndicators: [] as IndicatorKey[],
+      alerts: [],
+      alertsOpen: false,
+      dataSource: "binance" as SymbolSource,
 
       setSymbol: (symbol) => set({ symbol }),
       setLanguage: (language) => set({ language }),
@@ -556,10 +577,18 @@ export const useChartStore = create<ChartState>()(
             ? s.favoriteIndicators.filter((k) => k !== key)
             : [...s.favoriteIndicators, key],
         })),
+      addAlert: (symbol, price, direction, label = "") =>
+        set((s) => ({
+          alerts: [...s.alerts, { id: genId(), symbol, price, direction, label, triggered: false, createdAt: Date.now() }],
+        })),
+      removeAlert: (id) => set((s) => ({ alerts: s.alerts.filter((a) => a.id !== id) })),
+      setAlertTriggered: (id) => set((s) => ({ alerts: s.alerts.map((a) => a.id === id ? { ...a, triggered: true } : a) })),
+      setAlertsOpen: (alertsOpen) => set({ alertsOpen }),
+      setDataSource: (dataSource) => set({ dataSource }),
     }),
     {
       name: "tv-gratis-chart-state",
-      version: 12,
+      version: 13,
       migrate: (stored: unknown, fromVersion: number) => {
         // Chained migrations — each step mutates `state` so multi-version jumps apply all patches
         let state = stored as Record<string, unknown>;
@@ -663,6 +692,9 @@ export const useChartStore = create<ChartState>()(
         if (fromVersion < 12) {
           state = { ...state, favoriteIndicators: state.favoriteIndicators ?? [] };
         }
+        if (fromVersion < 13) {
+          state = { ...state, alerts: state.alerts ?? [], dataSource: state.dataSource ?? "binance" };
+        }
         return state;
       },
       partialize: (s) => ({
@@ -685,6 +717,8 @@ export const useChartStore = create<ChartState>()(
         fiboZones: s.fiboZones,
         logScale: s.logScale,
         favoriteIndicators: s.favoriteIndicators,
+        alerts: s.alerts,
+        dataSource: s.dataSource,
       }),
       merge: (persisted, current) => {
         const p = persisted as Partial<typeof current>;

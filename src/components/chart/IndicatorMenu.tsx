@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Activity, Check, Star } from "lucide-react";
 import {
   DropdownMenu,
@@ -31,8 +32,8 @@ const ENTRIES: Entry[] = [
   { key: "macd",       groupKey: "Osciladores",     label: (c) => `MACD (${c.macdFast}, ${c.macdSlow}, ${c.macdSignal})` },
   { key: "adx",        groupKey: "Osciladores",     label: (c) => `DMI/ADX/KeyLevel (DI ${c.adxDiLen}, ADX ${c.adxLen}, KL ${c.adxKeyLevel})` },
   { key: "sqzMom",     groupKey: "Osciladores",     label: (c) => `Squeeze Momentum BB ${c.sqzBbLen}/${c.sqzKcLen}` },
-  { key: "bb",         groupKey: "Osciladores",     label: (c) => `Bollinger Bands (${c.bbPeriod}, ${c.bbMult})` },
-  { key: "vwap",       groupKey: "Osciladores",     label: () => "VWAP" },
+  { key: "bb",         groupKey: "Overlays",        label: (c) => `Bollinger Bands (${c.bbPeriod}, ${c.bbMult})` },
+  { key: "vwap",       groupKey: "Overlays",        label: () => "VWAP" },
   { key: "stochRsi",   groupKey: "Osciladores",     label: (c) => `Stochastic RSI (${c.stochRsiLen}, ${c.stochRsiPeriod})` },
   { key: "williamsR",  groupKey: "Osciladores",     label: (c) => `Williams %R (${c.williamsRPeriod})` },
   { key: "atr",        groupKey: "Osciladores",     label: (c) => `ATR (${c.atrPeriod})` },
@@ -89,8 +90,13 @@ export function IndicatorMenu() {
   const favoriteIndicators = useChartStore((s) => s.favoriteIndicators);
   const toggleFavoriteIndicator = useChartStore((s) => s.toggleFavoriteIndicator);
   const t = useTranslation();
+  const [search, setSearch] = useState("");
 
-  const groups = ENTRIES.reduce<Record<string, Entry[]>>((acc, i) => {
+  const visibleEntries = search.trim()
+    ? ENTRIES.filter((e) => e.label(config, t.indicatorLabels.volume).toLowerCase().includes(search.toLowerCase()))
+    : ENTRIES;
+
+  const groups = visibleEntries.reduce<Record<string, Entry[]>>((acc, i) => {
     (acc[i.groupKey] ||= []).push(i);
     return acc;
   }, {});
@@ -99,7 +105,7 @@ export function IndicatorMenu() {
   const favSet = new Set(favoriteIndicators);
 
   return (
-    <DropdownMenu>
+    <DropdownMenu onOpenChange={(o) => { if (!o) setSearch(""); }}>
       <DropdownMenuTrigger className="flex items-center gap-1.5 rounded px-2.5 py-1.5 text-xs text-tv-text hover:bg-tv-panel-hover">
         <Activity className="h-3.5 w-3.5" />
         <span>{t.indicators}</span>
@@ -110,6 +116,17 @@ export function IndicatorMenu() {
         )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-72 bg-tv-panel">
+        <div className="border-b border-tv-border p-2">
+          <input
+            autoFocus
+            placeholder="Buscar indicador..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+            className="w-full rounded bg-tv-bg px-2.5 py-1.5 text-xs text-tv-text placeholder:text-tv-text-muted outline-none"
+          />
+        </div>
 
         {/* Favoritos — only shown when at least one is starred */}
         {favoriteIndicators.length > 0 && (

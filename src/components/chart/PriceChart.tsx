@@ -14,7 +14,7 @@ import {
   type IPriceLine,
   type UTCTimestamp,
 } from "lightweight-charts";
-import { fetchKlines } from "@/lib/binance/rest";
+import { fetchKlines, fetchYahooKlines } from "@/lib/binance/rest";
 import { getBinanceWS } from "@/lib/binance/ws";
 import { ema, rsi, macd, adxDmi, squeezeMomentum, bollingerBands, vwap as calcVwap, stochRsi as calcStochRsi, williamsR as calcWilliamsR, atr as calcAtr, cci as calcCci, obv as calcObv, mfi as calcMfi } from "@/lib/indicators";
 import type { SqzPoint, BBPoint, StochRSIPoint } from "@/lib/indicators";
@@ -78,6 +78,23 @@ function durationLabel(aTime: number, bTime: number): string {
   if (days > 0) return hours > 0 ? `${days}d ${hours}h` : `${days}d`;
   if (hours > 0) return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
   return `${minutes}m`;
+}
+
+function playAlertSound() {
+  try {
+    const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = "sine";
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.4, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.7);
+    setTimeout(() => ctx.close(), 1000);
+  } catch (_) {}
 }
 
 interface Props {
@@ -236,6 +253,7 @@ export function PriceChart({ symbol, timeframe }: Props) {
   const logScale = useChartStore((s) => s.logScale);
   const setTriggerResetView = useChartStore((s) => s.setTriggerResetView);
   const setTriggerScreenshot = useChartStore((s) => s.setTriggerScreenshot);
+  const dataSource = useChartStore((s) => s.dataSource);
 
   const [isPanning, setIsPanning] = useState(false);
   const [countdown, setCountdown] = useState("");
@@ -2019,7 +2037,9 @@ export function PriceChart({ symbol, timeframe }: Props) {
       volumeSeriesRef.current?.setData([]);
 
       try {
-        const klines = await fetchKlines(symbol, timeframe, 1000);
+        const klines = dataSource === "yahoo"
+          ? await fetchYahooKlines(symbol, timeframe, 1000)
+          : await fetchKlines(symbol, timeframe, 1000);
         if (cancelled) return;
         candlesRef.current = klines;
         if (candleSeriesRef.current) {
@@ -2069,6 +2089,8 @@ export function PriceChart({ symbol, timeframe }: Props) {
           });
         }
 
+        if (dataSource !== "binance") return; // no live data for Yahoo
+
         const ws = getBinanceWS();
         unsub = ws.subscribeKline({
           symbol, interval: timeframe,
@@ -2117,6 +2139,19 @@ export function PriceChart({ symbol, timeframe }: Props) {
             updateCCI();
             updateOBV();
             updateMFI();
+            // Check price alerts
+            const currentPrice = k.close;
+            const store = useChartStore.getState();
+            const sym = store.symbol;
+            store.alerts
+              .filter((a) => a.symbol === sym && !a.triggered)
+              .forEach((a) => {
+                const hit = a.direction === "above" ? currentPrice >= a.price : currentPrice <= a.price;
+                if (hit) {
+                  store.setAlertTriggered(a.id);
+                  playAlertSound();
+                }
+              });
             // lastPrice display is driven by mini-ticker below (same source as watchlist)
           },
         });
@@ -2137,7 +2172,7 @@ export function PriceChart({ symbol, timeframe }: Props) {
       if (unsub) unsub();
       if (unsubTicker) unsubTicker();
     };
-  }, [symbol, timeframe]);
+  }, [symbol, timeframe, dataSource]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Chart type switching ──────────────────────────────────────────────────
   function applyChartType(type: ChartType) {
